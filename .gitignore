@@ -1,0 +1,9 @@
+*.txt
+*.gz
+*.pyc
+*.DS_Store
+mutation_counter/rheMac10_finescale_mut_spectra_vcf.vcf_data/
+mutation_counter/one_rheMac10_finescale_mut_spectra_vcf.vcf_data/
+mutation_counter/data/
+Subset_explore/data/
+Subset_explore/vcf/
