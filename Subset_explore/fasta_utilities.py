@@ -1,4 +1,4 @@
-import numpy as numpy
+import numpy as np
 from itertools import product
 import os
 from functools import reduce  # forward compatibility for Python 3
@@ -105,6 +105,7 @@ def get_complement(kmer):
     return comp
 
 
+
 def complement_dicts(bases= 'ACGT',ksize= 3):
     '''return dict of comp kmers + index dict to parse with'''
     comp_dict= {}
@@ -127,6 +128,8 @@ def complement_dicts(bases= 'ACGT',ksize= 3):
     
     return comp_dict,comp_index
 
+###########
+########### get individual kmer frequencies following mutation.
 
 def collapse_freqs(kmer_dict,comp_index):
     '''return vector of collapsed counts by kmer'''
@@ -140,3 +143,264 @@ def collapse_freqs(kmer_dict,comp_index):
     return counts
             
 
+### vcf - fasta functions
+
+def vcf_kmers(refseq, summary, comp_dict, ksize=3,start= 0,end= 0):
+    '''
+    get kmers in vcf.
+    returns list of reference and alternative kmer indices in comp_dict.
+    '''
+    if end == 0:
+        end= max(summary.POS)
+        
+    ###
+    kmer_dict= {}
+    kmer_list= []
+    d= 0
+    base_set= [bases] * ksize
+    mers= product(*base_set)
+    
+    for kmer in mers:
+        kmer= ''.join(kmer)
+        kmer_dict[kmer]= d
+
+    ###
+    k5= int(ksize/2)
+    k3= ksize - k5
+    posKmer_ref= []
+    posKmer_alt= []
+    
+    for x in range(summary.shape[0]):
+        pos= int(summary.POS[x]) - 1
+        if pos >=  (start + k5) and pos <= (end - k3):
+            kmer= refseq[pos-k5: pos + k3]
+            mut= kmer[:k5] + summary.ALT[x] + kmer[k3:]
+            
+            posKmer_ref.append(comp_dict[kmer])
+            posKmer_alt.append(comp_dict[mut])
+    
+    return posKmer_ref, posKmer_alt
+
+
+
+#####
+
+
+
+def geno_kmers(genotype, summary, refseq,comp_index,ksize= 3,bases= 'ATCG', start= 0, end= 0):
+    '''get individual collapsed mutation arrays across data set.'''
+    
+    k5= int(ksize/2)
+    k3= ksize - k5
+    
+    ind_dicts= {ind: fasta_get_freq(refseq,start= int(start),end= int(end),step= 1,ksize=ksize,bases= bases) for ind in range(genotype.shape[0])}
+    collapsed= []
+    
+    for snp in range(genotype.shape[1]):
+        alleles= genotype[:,snp]
+        
+        changes= [x for x in range(len(alleles)) if alleles[x] > 0]
+        pos= int(summary.POS[snp]) - 1
+        
+        kmer= refseq[pos-k5: pos+k3]
+        kmer_comp= get_complement(kmer)
+        mut= kmer[:k5] + summary.ALT[snp] + kmer[k3:]
+        mut_comp= get_complement(mut)
+        
+        for ind in changes:
+            get_by_path(ind_dicts[ind], kmer[:-1])[kmer[-1]]-=  alleles[ind]
+            get_by_path(ind_dicts[ind], mut[:-1])[mut[-1]]+= alleles[ind]
+    
+    for ind in range(genotype.shape[0]):
+        collapsed_freqs= collapse_freqs(ind_dicts[ind],comp_index)
+        collapsed.append(collapsed_freqs)
+    
+    collapsed= np.array(collapsed)
+    collapsed= (collapsed.T/collapsed.sum(axis=1)).T
+    
+    return collapsed
+
+
+
+
+############################################
+############################################ Using dictionaries.
+
+
+def kmer_mut_init(mutations):
+    '''produce nested dictionary of nucs for a particular kmer size'''
+    
+    mut_lib= recursively_default_dict()
+    
+    d= 0
+    for mut in range(len(mutations)):
+        trimer= mutations[mut]
+        trimer= ''.join(trimer)
+        get_by_path(mut_lib, trimer[:-1])[trimer[-1]]= 0
+    
+    return mut_lib
+
+
+def kmer_mut_index(mutations):
+    '''produce nested dictionary of nucs for a particular mutation list'''
+    mut_lib= recursively_default_dict()
+    
+    for mut in range(len(mutations)):
+        trimer= ''.join(mutations[mut])
+        get_by_path(mut_lib, trimer[:-1])[trimer[-1]]= mut
+    
+    return mut_lib
+
+
+def vcf_muts(refseq,summary,start= 0,end= 0,ksize= 3,bases='ATCG'):
+    ''' return vector of mutation contexts by SNP in vcf. '''
+    
+    mut_lib= kmer_mut_index(mutations)
+    
+    if end == 0:
+        end= max(summary.POS)
+    
+    k5= int(ksize/2)
+    k3= ksize - k5
+    pos_mut= []
+    
+    for x in range(summary.shape[0]):
+        pos= int(summary.POS[x]) - 1
+        if pos >=  start and pos <= end:
+            kmer= refseq[pos-k5: pos + k3]
+            mut= kmer + summary.ALT[x]
+            mut_index= get_by_path(mut_lib, list(mut))
+            
+            pos_mut.append(mut_index)
+            
+    return pos_mut
+
+
+def kmer_comp_index(mutations):
+    ''' return nested dictionaries of kmer mutations w/ index'''
+    kmers= {}
+    kmer_idx= {}
+    d= 0
+    for kmer in mutations:
+
+        comp= get_complement(kmer[0]) + get_complement(kmer[1])
+        comp= ''.join(comp)
+        kmer= ''.join(kmer)
+        
+        if comp in kmers.keys():
+            idx= kmers[comp]
+            kmers[kmer]= idx
+            kmer_idx[idx].append(kmer)
+        else:
+            kmers[kmer]= d
+            kmer_idx[d]= [kmer]
+
+        d += 1
+    
+    return kmers, kmer_idx
+
+
+def collapse_muts(kmer_dict,mutations, collapse= True):
+    '''return vector of counts by kmer, optional collapse by complement'''
+    counts= []
+    
+    if collapse:
+        kmers, kmer_idx= kmer_comp_index(mutations)
+
+        for kdx in kmer_idx.keys():
+            count= [get_by_path(kmer_dict, list(comp)) for comp in kmer_idx[kdx]]
+            count= sum(count)
+            ##
+            counts.append(count)
+    
+    else:
+        for comp in mutations:
+            comp= ''.join(comp)
+            kdx= get_by_path(kmer_dict, list(comp))
+            counts.append(kdx)
+        
+    return counts
+
+
+def geno_muts_v1(geno_array, kmer_dict, vcf_muts_vector, mutations, 
+                 bases= 'ACGT', ksize= 3, Wl= 0, collapse= True):
+    ''' return mutation spectrum'''
+    
+    ind_dict_store= {
+        i: kmer_mut_init(mutations) for i in range(geno_array.shape[0])
+    }
+    collapsed= []
+    
+    for snp in range(geno_array.shape[1]):
+        
+        alleles= geno_array[:,snp]
+        changes= [x for x in range(len(alleles)) if alleles[x] > 0]
+        
+        minus= mutations[vcf_muts_vector[snp]]
+        
+        prop_kmer= get_by_path(kmer_dict, minus[0]) / (Wl - ksize + 1)
+        minus= ''.join(minus)        
+        
+        for ind in changes:
+            get_by_path(ind_dict_store[ind], minus[:-1])[minus[-1]]+= alleles[ind] #/ prop_kmer
+    
+    for ind in range(geno_array.shape[0]):
+        collapsed_freqs= collapse_muts(ind_dict_store[ind],mutations,collapse= collapse)
+        collapsed.append(collapsed_freqs)
+    
+    collapsed= np.array(collapsed)
+    collapsed= (collapsed.T/collapsed.sum(axis=1)).T
+    
+    return collapsed
+
+########################################################
+######################################################## Using matrices
+
+
+def vcf_muts_matrix(refseq,summary,start= 0,end= 0,ksize= 3,bases='ATCG'):
+    ''' 
+    Return matrix of mutation contexts by SNP in genotype array
+    Each mutation is mapped to list of possible mutations as a binary vector.
+    '''
+
+    mutations= get_mutations(bases= bases,ksize= ksize)
+    
+    mut_lib= kmer_mut_index(mutations)
+    
+    if end == 0:
+        end= max(summary.POS)
+    
+    k5= int(ksize/2)
+    k3= ksize - k5
+    pos_mut= []
+    
+    for x in range(summary.shape[0]):
+        pos= int(summary.POS[x]) - 1
+        if pos >=  start and pos <= end:
+            kmer= refseq[pos-k5: pos + k3]
+            mut= kmer + summary.ALT[x]
+            mut_index= get_by_path(mut_lib, list(mut))
+            
+            mut_array=np.zeros(len(mutations))
+            
+            mut_array[mut_index]= 1
+            pos_mut.append(mut_array)
+    
+    pos_mut= np.array(pos_mut).T
+    
+    return pos_mut
+
+
+
+def geno_muts_v2(geno_array, vcf_muts_matrix):
+    ''' 
+    Return mutation spectrum using matrix multiplication.
+    multiply mutation matrix by genotype array to obtain matrix of mutations by samples.
+    '''
+    
+    collapsed= vcf_muts_matrix @ geno_array.T
+    
+    collapsed= np.array(collapsed).T
+    collapsed= (collapsed.T/collapsed.sum(axis=1)).T
+    
+    return collapsed

@@ -21,6 +21,7 @@ from structure_tools.Modules_tools import return_fsts2
 
 from structure_tools.AMOVA_func import AMOVA_FM42, amova_cofactor
 
+import gzip
 
 def recursively_default_dict():
         return collections.defaultdict(recursively_default_dict)
@@ -144,6 +145,83 @@ def read_geno_nanum(filename, row_info= 6,header_info= 9,phased= False):
     genotype= np.array(genotype).T
 
     return genotype, summary, Names
+
+
+
+def read_geno_nanumv2(filename,header_info= 9,phased= False):
+    '''
+    read vcf file simple, 
+    phased= False sums alleles, phased= True returns haplotypes.
+    row_info_deprecated from v1.
+    '''
+    info_summ= {}
+
+    header_len= header_info
+    summary= []
+
+    Miss= recursively_default_dict()
+    
+    Input= gzip.open(filename,'r')
+
+    genotype= []
+    d= 0
+
+    for line in Input:    
+        line= line.decode().strip().split()
+        
+        if line[0] != "#CHROM" and d == 0:
+            continue
+
+        if line[0] == "#CHROM":
+            #print(info_summ)
+            line= '\t'.join(line)
+            line= ''.join(filter(lambda ch: ch not in "#", line))
+            line= line.split()
+            columns= line[:header_len]
+            Names= line[header_len:]
+            d += 1
+            continue
+        
+        if d > 0:
+            #line= line.split()
+            seq= []
+            #print(line)
+            info= line[:header_len]
+            chrom= re.search(r'\d+', line[0]).group()
+            info[0]= chrom
+            summary.append(info)
+            #print(chrom)
+            #print(line)
+            
+            for ind in range(header_len,len(line)):
+                
+                locus= line[ind]
+                #print(locus)
+                alleles= locus.split(':')[0]
+                
+                #print(alleles)
+                
+                if '.' in alleles:
+                    alleles= ''.join([[x,'0'][int(x == '.')] for x in list(alleles)])
+                alleles= list(map(int, re.findall(r'\d+', alleles)))
+                if len(alleles) != 2:
+                    print(alleles)
+                if phased:
+                    seq.extend(alleles)
+                else:
+                    seq.append(sum(alleles))
+
+            genotype.append(seq)
+            d += 1
+
+    Input.close()
+
+    summary= np.array(summary)
+    summary= pd.DataFrame(summary,columns= columns)
+    genotype= np.array(genotype).T
+
+    return genotype, summary, Names
+
 
 
 def simple_read_vcf(filename,row_info= 5,header_info= 9,phased= False):
