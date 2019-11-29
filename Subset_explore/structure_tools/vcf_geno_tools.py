@@ -230,8 +230,7 @@ def simple_read_vcf(filename,row_info= 5,header_info= 9,phased= False):
 
     info_summ= {}
     info_save= list(range(row_info))
-
-    phased= False
+    
     header_len= header_info
     summary= []
 
