@@ -276,6 +276,7 @@ def vcf_muts(refseq,summary,start= 0,end= 0,ksize= 3,bases='ATCG'):
     return pos_mut
 
 
+
 def kmer_comp_index(mutations):
     ''' return nested dictionaries of kmer mutations w/ index'''
     kmers= {}
@@ -292,8 +293,8 @@ def kmer_comp_index(mutations):
             kmers[kmer]= idx
             kmer_idx[idx].append(kmer)
         else:
-            kmers[kmer]= d
-            kmer_idx[d]= [kmer]
+            kmers[kmer]= len(kmer_idx)
+            kmer_idx[len(kmer_idx)]= [kmer]
 
         d += 1
     
@@ -357,13 +358,14 @@ def geno_muts_v1(geno_array, kmer_dict, vcf_muts_vector, mutations,
 ######################################################## Using matrices
 
 
-def vcf_muts_matrix(refseq,summary,start= 0,end= 0,ksize= 3,bases='ATCG'):
+def vcf_muts_matrix(refseq,summary,start= 0,end= 0,ksize= 3,bases='ATCG', collapse= True):
     ''' 
     Return matrix of mutation contexts by SNP in genotype array
     Each mutation is mapped to list of possible mutations as a binary vector.
     '''
-
+    
     mutations= get_mutations(bases= bases,ksize= ksize)
+    kmers, kmer_idx= kmer_comp_index(mutations)
     
     mut_lib= kmer_mut_index(mutations)
     
@@ -379,9 +381,13 @@ def vcf_muts_matrix(refseq,summary,start= 0,end= 0,ksize= 3,bases='ATCG'):
         if pos >=  start and pos <= end:
             kmer= refseq[pos-k5: pos + k3]
             mut= kmer + summary.ALT[x]
-            mut_index= get_by_path(mut_lib, list(mut))
             
-            mut_array=np.zeros(len(mutations))
+            if collapse:
+                mut_index= kmers[mut]
+                mut_array=np.zeros(len(kmer_idx))
+            else:
+                mut_index= get_by_path(mut_lib, list(mut))
+                mut_array=np.zeros(len(mutations))
             
             mut_array[mut_index]= 1
             pos_mut.append(mut_array)
@@ -389,6 +395,7 @@ def vcf_muts_matrix(refseq,summary,start= 0,end= 0,ksize= 3,bases='ATCG'):
     pos_mut= np.array(pos_mut).T
     
     return pos_mut
+
 
 
 
