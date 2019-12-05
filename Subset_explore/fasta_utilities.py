@@ -42,7 +42,6 @@ def get_mutations(bases= 'ACGT',ksize= 3):
     
     mutations=[]
     
-    
     base_set= [bases]*ksize
 
     for trimer in product(*base_set):
@@ -227,7 +226,7 @@ def geno_kmers(genotype, summary, refseq,comp_index,ksize= 3,bases= 'ATCG', star
 ############################################ Using dictionaries.
 
 
-def kmer_mut_init(mutations):
+def kmer_mut_init(mutations, default= 0):
     '''produce nested dictionary of nucs for a particular kmer size'''
     
     mut_lib= recursively_default_dict()
