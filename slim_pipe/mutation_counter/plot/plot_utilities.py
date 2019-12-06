@@ -82,12 +82,18 @@ def frequency_breakdown(path, chromosomes, frequency_range):
     return count_array
 
 
-def heatmap(chromosomes, population_pair, frequency_range, exclude, p_value, short,vcf_data):
+def heatmap(chromosomes, population_pair, frequency_range, exclude, 
+                p_value, short,muted_dir):
+
+    outdir= muted_dir + '{}_finescale_mut_spectra_vcf.{}/'.format(short,short)
+
+    if exclude:
+        files= read_exclude()
+    else:
+        files= {}
+
     pop_counts = {}
     num_variants = {}
-    outdir= '../{}_finescale_mut_spectra_vcf.{}/'.format(short,vcf_data)
-
-    files= read_exclude()
 
     for pop in population_pair:
         path = (outdir + 'mut_type_v_allele_freq_' +
@@ -125,15 +131,19 @@ def heatmap(chromosomes, population_pair, frequency_range, exclude, p_value, sho
                 ])
 
             chi_0= np.sum(chi_array,axis= 1)
+            chi_1= np.sum(chi_array,axis= 0)
 
             if chi_0[0] == 0 or chi_0[1] == 0:
                 ratio_grid[i][j] = np.nan
                 sig_x.append(j+0.5)
                 sig_y.append(i+0.5)
+            
+            elif chi_1[0] == 0 or chi_1[1] == 0:
+                ratio_grid[i][j] = 1
 
             else:
                 #print(chi_array)
-                
+                ##
                 _, this_pval, _, _ = chi2_contingency(
                     chi_array
                 )

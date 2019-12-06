@@ -3,7 +3,6 @@ import argparse
 import gzip
 
 from mutations import mutations
-from labels import sample_id_to_population, populations
 
 import tempfile
 import os
@@ -38,7 +37,7 @@ def get_args():
     parser.add_argument('-e', '--exclude',
                         default=False, action='store_true')
 
-    
+
     #parser.add_argument('-a', '--annotations', type=str, nargs='+', default= [])
 
     args = parser.parse_args()
@@ -112,9 +111,9 @@ def get_human_chimp_differences(chromosome_number,reference,short,dir_launch='..
 
 
 
-def get_column_indices(column_labels):
+def get_column_indices(column_labels, populations, sample_id_to_population):
     #column_labels= [x.strip(b'0_') for x in column_labels]
-    
+
     population_to_column_indices = {
         population: [] for population in populations
     }
@@ -130,16 +129,18 @@ def get_column_indices(column_labels):
     return population_to_column_indices
 
 
-def get_column_index_to_population(column_labels):
+def get_column_index_to_population(column_labels, sample_id_to_population):
     #column_labels= [x.strip(b'0_') for x in column_labels]
-    sample_ids = column_labels[9:]    
+    sample_ids = column_labels[9:]
+    
     return {
         i + 9: sample_id_to_population[sample_id]
         for i, sample_id in enumerate(sample_ids)
     }
 
 
-def initialize_mut_count(population_to_column_indices):
+
+def initialize_mut_count(population_to_column_indices,populations):
     mut_count = {}
     for pop in populations:
         for mut in mutations:
@@ -149,7 +150,7 @@ def initialize_mut_count(population_to_column_indices):
     return mut_count
 
 
-def write_output(output, outfile_path, indices, mut_count):
+def write_output(output, outfile_path, indices, mut_count, populations):
     for pop in populations:
         for mut in mutations:
             output[pop] += mut[0] + '_' + mut[1]

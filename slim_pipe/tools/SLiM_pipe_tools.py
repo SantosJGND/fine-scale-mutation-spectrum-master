@@ -13,8 +13,6 @@ import subprocess
 from datetime import datetime
 
 
-
-
 def read_chrom_sizes(assembly,size_dir= 'chrom_sizes/',reject= ['M','Un','X','Y','_']):
     '''
     read chromosome size file. Store and return as {str(chrom): int(chrom_len)} dict.
@@ -48,7 +46,7 @@ def region_samplev2(L, chrom_sizes, N, fasta_file= ''):
         z: len([x for x in range(N) if choices[x]==z]) for z in list(set(choices))
     }
     
-
+    print(seqs_store)
     seqs= fasta_RextractUnif(fasta_file, seqs_store, L= L)
     
     return seqs
@@ -124,6 +122,7 @@ def return_seqs(seq,size= 10,L= 1000,keep= ['A','T','G','C']):
             d += 1
     
     return seq_dict
+
 
 
 def write_fastaEx(fasta,chrom= '1',start= 0, ID= 'SIM', fasta_dir= ''):
@@ -209,17 +208,18 @@ def SLiM_dispenserv1(sim_store, sim_recipe, cookID= 'ID', slim_dir= './', batch_
 
 
 
-def mutation_counter_launch(logfile,count_dir= './count/', dir_launch= '..',main_dir= './'):
+def mutation_counter_launch(logfile,count_dir= './count/', 
+                dir_launch= '..',main_dir= './', outlog= 'muted.log'):
     '''
     launch mutation counter.
     - read mut.log to know which have not been yet processed.
     - launch process_chromosomes.py using simulation name. 
     '''
     with open(logfile,'r') as fp:
-        sims= fp.readlines()
+        lines= fp.readlines()
     
-    print(sims)
-    sims= [x.strip() for x in sims]
+    
+    sims= [x.strip() for x in lines]
     chroms= [x.split('.')[0].split('C')[-1].strip('chr') for x in sims]
     
     job= 'python process_chromosomes.py -c {} -r {} -s {} -v {}_ -q {} -d {}'
@@ -233,9 +233,10 @@ def mutation_counter_launch(logfile,count_dir= './count/', dir_launch= '..',main
     
     os.chdir(main_dir)
 
+    with open(outlog,'a') as fp:
+        fp.write(''.join(lines))
+
     open(logfile,'w').close()
-
-
 
 
 
@@ -261,8 +262,9 @@ def write_popIDs(sampleSizes,popSuff= 'pop',indSuff= 'i',
 
 
 
-#####
-#####
+####################################################################
+####################################################################
+
 def fasta_chrExtract(fasta,chromosomes):
     '''
     extract selected chromosomes all in one go. return as {chrom: fasta} dict.
@@ -404,7 +406,7 @@ def fasta_Rextract(fasta,seq_store,L= 10000):
     return refseqs
 
 
-def return_seqs(seq,size= 10,L= 1000,keep= ['A','T','G','C']):
+def return_seqs_deprecated(seq,size= 10,L= 1000,keep= ['A','T','G','C']):
     
     d= 0
     

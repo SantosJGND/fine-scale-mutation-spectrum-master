@@ -1,5 +1,4 @@
 from mutations import mutations, bases
-from labels import sample_id_to_population, populations
 import numpy as np
 from common import (
     reference_sequence,
@@ -23,13 +22,13 @@ class MutationCounter:
         print(reference)
 
 
-    def configure(self, line, dir_launch='..',ancestral_check= False):
+    def configure(self, line, sample_id_to_population, dir_launch='..',ancestral_check= False):
         column_labels = line.split()
         self.n_lineages = 2 * (len(column_labels) - 9)
         
         print('\t{} columns'.format(len(column_labels)))
         print('\tcolumn index to pop')
-        self.column_index_to_population = get_column_index_to_population(column_labels)
+        self.column_index_to_population = get_column_index_to_population(column_labels, sample_id_to_population)
         
         self.refseq = reference_sequence(self.chrom,self.ref,dir_launch=dir_launch)
         print('len of reference seq: {}'.format(len(self.refseq)))
@@ -43,10 +42,10 @@ class MutationCounter:
 
         print('\tconfigure regions')
         for included_region in self.included_regions:
-            included_region.configure(column_labels)
+            included_region.configure(column_labels, sample_id_to_population)
 
 
-    def process_line(self, line,filter= True,proper= False,correct= False,print_c= True,ancestral_check= False):
+    def process_line(self, line, populations, filter= True,proper= False,correct= False,print_c= True,ancestral_check= False):
         s=line.strip(b'\n').split(b'\t')
 
         filter_flags= [b'PASS']
@@ -147,18 +146,19 @@ class MutationCounter:
 
 
 class IncludedRegion:
-    def __init__(self, chrom, output, outfile_path, conserved):
+    def __init__(self, chrom, output, outfile_path, conserved, populations):
         self.chrom = chrom
         self.output = output
         self.outfile_path = outfile_path
         self.conserved = conserved
-
+        self.populations= populations
         self.conserved_ind = 0
 
-    def configure(self, column_labels):
-        self.indices = get_column_indices(column_labels)
-        self.column_index_to_population = get_column_index_to_population(column_labels)
-        self.mut_count = initialize_mut_count(self.indices)
+    def configure(self, column_labels, sample_id_to_population):
+
+        self.indices = get_column_indices(column_labels, self.populations, sample_id_to_population)
+        self.column_index_to_population = get_column_index_to_population(column_labels, sample_id_to_population)
+        self.mut_count = initialize_mut_count(self.indices, self.populations)
 
     def update_position(self, pos):
         while self.conserved_ind<len(self.conserved)-1 and pos>self.conserved[self.conserved_ind][1]:
@@ -172,4 +172,4 @@ class IncludedRegion:
             self.mut_count[(mutation, population, count)] += 1
 
     def write_output(self):
-        write_output(self.output, self.outfile_path, self.indices, self.mut_count)
+        write_output(self.output, self.outfile_path, self.indices, self.mut_count, self.populations)
