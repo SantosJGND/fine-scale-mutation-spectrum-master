@@ -3,8 +3,6 @@
 // - vcf_file;
 //initializeMutationRate(2.36e-8);
 initialize() {
-	defineConstant("fasta_file","C:/Users/floyd/Desktop/AZ/SuzLab/SLiM/mutation_counter/data/GravelC15.67874522_reference/chr15_GravelC15.67874522.fa");
-	defineConstant("vcf_file","C:/Users/floyd/Desktop/AZ/SuzLab/SLiM/mutation_counter/data/vcf_data/GravelC15.67874522_chr1.vcf");
 	initializeSLiMOptions(nucleotideBased=T);
 	defineConstant("L", initializeAncestralNucleotides(fasta_file));
 	initializeMutationTypeNuc("m1", 0.5, "f", 0.0);
@@ -63,7 +61,7 @@ initialize() {
 58000 late() {
 	g = c();
 	pops= 0:2;
-	samples= c(216,108,206);
+	samples= c(s1,s2,s3);
 	for (x in pops) 
 		g= c(g, sim.subpopulations[x].sampleIndividuals(samples[x]).genomes);
 	

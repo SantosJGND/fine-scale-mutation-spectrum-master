@@ -56,7 +56,7 @@ if __name__ == '__main__':
     
     bed_tag=['','_lb_'][int(len(bed_filter) > 0)]
 
-    outfile_dir= dir_launch+'/'+ reference + bed_tag + '_finescale_mut_spectra_vcf.' + vcf_dir
+    outfile_dir= dir_launch+'/data/mutation_count/'+ reference + bed_tag + '_finescale_mut_spectra_vcf.' + vcf_dir
     os.makedirs(outfile_dir, exist_ok=True)
     outfile_dir= outfile_dir +  '/'
     

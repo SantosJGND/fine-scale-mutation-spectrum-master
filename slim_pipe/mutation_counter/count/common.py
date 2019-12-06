@@ -38,7 +38,7 @@ def get_args():
     parser.add_argument('-e', '--exclude',
                         default=False, action='store_true')
 
-
+    
     #parser.add_argument('-a', '--annotations', type=str, nargs='+', default= [])
 
     args = parser.parse_args()
@@ -66,7 +66,7 @@ def get_chromosomes_from_args():
 
 def reference_sequence(chromosome_number,reference,dir_launch='..'):
 
-    file_path_template = dir_launch+'/data/{}_reference/chr{}_{}.fa.gz'.format(reference,chromosome_number,reference)
+    file_path_template = dir_launch+'/data/sims/{}/chr{}_{}.fa.gz'.format(reference,chromosome_number,reference)
     
     with gzip.open(file_path_template) as infile:
         lines = infile.readlines()
@@ -92,7 +92,7 @@ def reference_sequence(chromosome_number,reference,dir_launch='..'):
 def get_human_chimp_differences(chromosome_number,reference,short,dir_launch='..'):
     human_chimp_differences = {}
 
-    file_path= ''.join([dir_launch,'/data/',reference,'_',short,'_diffs/',
+    file_path= ''.join([dir_launch,'/data/diffs/',reference,'_',short,'_diffs/',
         reference,'_',short,'_diffs_chr', chromosome_number,'.txt.gz'])
 	
     file_path= (file_path)
@@ -165,7 +165,7 @@ def write_output(output, outfile_path, indices, mut_count):
 
 def open_infile(chrom,vcf_file,suff='chr',vcf_dir= 'vcf_data',dir_launch='..'):
 
-    filename= ''.join([dir_launch,'/data/',vcf_dir,'/',vcf_file,suff,chrom,'.vcf.gz'])
+    filename= ''.join([dir_launch,'/data/sims/',vcf_dir,'/',vcf_file,suff,chrom,'.vcf.gz'])
     print('read from vcf: {}'.format(filename))
 
     file_path = (filename)
