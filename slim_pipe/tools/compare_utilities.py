@@ -78,7 +78,7 @@ def pops_from_sim(sim,sims_dir= './mutation_counter/data/sims/',pop_set= True):
 
 
 
-def count_compare(sim, frequency_range= [0,1], p_value= 1e-5,muted_dir= './mutation_counter/data/mutation_count/',
+def count_compare(sim, frequency_range= [0,1], p_value= 1e-5, extract= 'pval',muted_dir= './mutation_counter/data/mutation_count/',
                   sims_dir= './mutation_counter/data/sims/', exclude= False):
     
     ''' perform pairwise population comparison of mutation counts for particular simulation'''
@@ -110,7 +110,7 @@ def count_compare(sim, frequency_range= [0,1], p_value= 1e-5,muted_dir= './mutat
     heatmaps = [
         heatmap(
             chromosomes, population_pair, frequency_range, exclude, 
-            p_value, sim, muted_dir
+            p_value, sim, muted_dir, output= extract
         ) for chromosomes, population_pair in chrom_pop
     ]
 
@@ -119,7 +119,7 @@ def count_compare(sim, frequency_range= [0,1], p_value= 1e-5,muted_dir= './mutat
     return ratio_grids, significant_indices
 
 
-def deploy_count(available, frequency_range= [0,1], p_value= 1e-5,muted_dir= './mutation_counter/data/mutation_count/',
+def deploy_count(available, frequency_range= [0,1], p_value= 1e-5, extract= 'pval',muted_dir= './mutation_counter/data/mutation_count/',
                   sims_dir= './mutation_counter/data/sims/'):
     
     ''' deploy count_compare() across simulations read from. '''

@@ -43,22 +43,17 @@ def get_args():
     args = parser.parse_args()
 
     chromosomes = parser.parse_args(sys.argv[1:]).chromosomes
-    for chrom in chromosomes:
-        assert chrom in valid_chromosomes
 
     return chromosomes, args.ref, args.short, args.vcf, args.dir, args.vcfdir, args.bedfilter, args.exclude
 
 
 def get_chromosomes_from_args():
-    valid_chromosomes = ['X'] + [str(i) for i in range(1, 23)]
-
     parser = argparse.ArgumentParser()
     parser.add_argument('-c', '--chromosomes', type=str, nargs='+',
                         default=valid_chromosomes)
 
     chromosomes = parser.parse_args(sys.argv[1:]).chromosomes
-    for chrom in chromosomes:
-        assert chrom in valid_chromosomes
+
     return chromosomes
 
 

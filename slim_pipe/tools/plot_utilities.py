@@ -83,7 +83,7 @@ def frequency_breakdown(path, chromosomes, frequency_range):
 
 
 def heatmap(chromosomes, population_pair, frequency_range, exclude, 
-                p_value, short,muted_dir):
+                p_value, short,muted_dir,output= 'pval'):
 
     outdir= muted_dir + '{}_finescale_mut_spectra_vcf.{}/'.format(short,short)
 
@@ -145,8 +145,11 @@ def heatmap(chromosomes, population_pair, frequency_range, exclude,
                 _, this_pval, _, _ = chi2_contingency(
                     chi_array
                 )
-                ratio_grid[i][j] = (pop_counts[pop][i][j] * num_variants[refpop] /
-                                    (num_variants[pop] * pop_counts[refpop][i][j]))
+                if output == 'pval':
+                	ratio_grid[i][j] = this_pval
+                else:
+	                ratio_grid[i][j] = (pop_counts[pop][i][j] * num_variants[refpop] /
+	                                    (num_variants[pop] * pop_counts[refpop][i][j]))
                 if this_pval < p_value:
                     sig_x.append(j+0.5)
                     sig_y.append(i+0.5)

@@ -169,7 +169,7 @@ def process_recipe(recipe,constant_dict, SIMname):
 
 
 def SLiM_dispenserv1(sim_store, sim_recipe, cookID= 'ID', slim_dir= './', batch_name= '',
-                    ID= 'v1',logSims= 'sims.log', mutlog= 'toMut.log'):
+                    ID= 'v1',L= 10000, logSims= 'sims.log', mutlog= 'toMut.log'):
     ''' execute SLiM program
     - simulation specific recipe:
     - recipe template is re-written to direct to new fasta.
@@ -200,7 +200,7 @@ def SLiM_dispenserv1(sim_store, sim_recipe, cookID= 'ID', slim_dir= './', batch_
         constant_str= ';'.join(['='.join([v,str(g)]) for v,g in command_line_constants.items()])
 
         with open(logSims,'a') as fp:
-            INFO= [SIMname,tnow,sim_recipe,cookID,constant_str]
+            INFO= [SIMname,tnow,sim_recipe,cookID,'L='+str(L),constant_str]
             fp.write('\t'.join(INFO) + '\n')
         
         with open(mutlog,'a') as fp:
@@ -234,7 +234,7 @@ def mutation_counter_launch(logfile,count_dir= './count/',
     os.chdir(main_dir)
 
     with open(outlog,'a') as fp:
-        fp.write(''.join(lines))
+        fp.write('\n' + ''.join(lines))
 
     open(logfile,'w').close()
 
