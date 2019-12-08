@@ -13,6 +13,7 @@ import subprocess
 from datetime import datetime
 
 
+
 def read_chrom_sizes(assembly,size_dir= 'chrom_sizes/',reject= ['M','Un','X','Y','_']):
     '''
     read chromosome size file. Store and return as {str(chrom): int(chrom_len)} dict.
@@ -116,7 +117,7 @@ def return_seqs(seq,size= 10,L= 1000,keep= ['A','T','G','C']):
         
         scrag= [x for x in given if x not in keep]
         
-        if not scrag:
+        if len(scrag) == 0:
             seq_dict[pos]= given
             
             d += 1
@@ -136,6 +137,8 @@ def write_fastaEx(fasta,chrom= '1',start= 0, ID= 'SIM', fasta_dir= ''):
         fp.write(fasta)
     
     return filename
+
+
 
 
 def process_recipe(recipe,constant_dict, SIMname):
@@ -178,14 +181,14 @@ def SLiM_dispenserv1(sim_store, sim_recipe, cookID= 'ID', slim_dir= './', batch_
     for SIMname in sim_store.keys():
         
         command_line_constants= sim_store[SIMname]
-
+        
         ### generate modified slim recipe
         new_recipe= process_recipe(sim_recipe,command_line_constants, SIMname)
-
+        
         seed= np.random.randint(0,high= nf,size= 1)[0]
         ### Launch SLiM through shell.
         slim_soft= slim_dir + 'slim*' 
-
+        
         command_units= [slim_soft, '-m', '-s', str(seed), new_recipe]
 
         os.system(' '.join(command_units))

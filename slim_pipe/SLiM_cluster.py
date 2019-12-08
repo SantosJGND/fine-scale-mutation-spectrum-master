@@ -16,18 +16,19 @@ fastas_dir= '/home/jgarc235/Rhesus/SLiM/Fastas/'
 sim_dir= main_dir + 'Recipes/Human_sims/'
 sim_recipe= 'Gravel_2011_kmmVCF_fasta_pipe.slim'
 
-dir_data= main_dir + 'mutation_counter/data/'
-dir_vcf= dir_data + 'vcf_data/'
+dir_data= main_dir + 'mutation_counter/data/sims/'
 count_dir= main_dir + 'mutation_counter/count/'
 dir_launch= main_dir + 'mutation_counter'
+slim_soft= slim_dir + 'sim*'
 
 summary_file= 'sims.log'
 mutlog= 'toMut.log'
 
 #
 ##
-##
-slim_soft= slim_dir + 'slim*'
+## SLiM recipe.
+sim_dir= main_dir + 'Recipes/Human_sims/'
+sim_recipe= 'Gravel_2011_frame_sample.slim'
 sim_recipe= sim_dir + sim_recipe
 ##
 ##
@@ -58,11 +59,25 @@ chrom_sizes= read_chrom_sizes(assembly)
 fasta= fastas_dir + assembly + '.fa.gz'
 rseqs= region_samplev1(L, chrom_sizes,N, fasta)
 
+from tools.SLiM_pipe_tools import SLiM_dispenserv1
+from tools.cookbook import cook_constants_Gravel2sampleRange
+
 ## Perform Simulations
 print('launch SLiM jobs.')
-SLiM_dispenser(rseqs,sim_recipe,dir_data= dir_data, dir_vcf= dir_vcf, 
-               slim_dir= slim_dir, logSims= summary_file,
-               mutlog= mutlog,batch_name= batch_name)
+
+cookargs= {
+    "nrange": [.05,.5], 
+    "step": N,
+    "Nmax":100
+}
+
+sim_store, cookID= cook_constants_Gravel2sampleRange(rseqs,dir_data= dir_data,
+               slim_dir= slim_dir, batch_name= batch_name,**cookargs)
+
+
+SLiM_dispenserv1(sim_store, sim_recipe, cookID= cookID, slim_dir= slim_dir, batch_name= batch_name,
+                    ID= cookID, L= L, logSims= summary_file, mutlog= mutlog)
+
 
 #########                                      ##############
 #############################################################
@@ -75,4 +90,5 @@ print('launch mutation counter.')
 mutation_counter_launch(mutlog,count_dir= count_dir, 
                         dir_launch= dir_launch,main_dir= main_dir)
 
-#############################################################
+
+###########
