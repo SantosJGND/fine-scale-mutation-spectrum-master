@@ -48,21 +48,24 @@ def heatmap_mutation_labels():
 
 
 
-def get_available_muts(muted_log):
+def get_available_muts(muted_log,info= True):
     ''' read log of mutation counts '''
     
     with open(muted_log,'r') as fp:
         available= fp.readlines()
     
     available= [x.strip() for x in available]
+    if info:
+        available= [x for x in available if x]
+        available= [x.split()[0] for x in available]
     
     return available
 
 
-def pops_from_sim(sim,sims_dir= './mutation_counter/data/sims/',pop_set= True):
+def pops_from_sim(sim,sims_dir= './mutation_counter/data/sims/',pop_set= True, ind_file= "ind_assignments.txt"):
     '''read sim specific int to pop assignment, return pops.'''
     sim_dir= sims_dir + '{}/'.format(sim)
-    ID_file= sim_dir + "ind_assignments.txt"
+    ID_file= sim_dir + ind_file
 
     pops= []
     with open(ID_file,'r') as sample_id_lines:
@@ -79,10 +82,10 @@ def pops_from_sim(sim,sims_dir= './mutation_counter/data/sims/',pop_set= True):
 
 
 def count_compare(sim, frequency_range= [0,1], p_value= 1e-5, extract= 'pval',muted_dir= './mutation_counter/data/mutation_count/',
-                  sims_dir= './mutation_counter/data/sims/', exclude= False):
+                  sims_dir= './mutation_counter/data/sims/', exclude= False, ind_file= "ind_assignments.txt"):
     
     ''' perform pairwise population comparison of mutation counts for particular simulation'''
-    pops= pops_from_sim(sim,sims_dir= sims_dir)
+    pops= pops_from_sim(sim,sims_dir= sims_dir, ind_file= ind_file)
 
     ### change this 
     focus= pops[0]
@@ -120,7 +123,7 @@ def count_compare(sim, frequency_range= [0,1], p_value= 1e-5, extract= 'pval',mu
 
 
 def deploy_count(available, frequency_range= [0,1], p_value= 1e-5, extract= 'pval',muted_dir= './mutation_counter/data/mutation_count/',
-                  sims_dir= './mutation_counter/data/sims/'):
+                  sims_dir= './mutation_counter/data/sims/', ind_file= "ind_assignments.txt"):
     
     ''' deploy count_compare() across simulations read from. '''
     data= {}
@@ -128,7 +131,7 @@ def deploy_count(available, frequency_range= [0,1], p_value= 1e-5, extract= 'pva
     for sim in available:
         
         ratio_grids, significant_indices= count_compare(sim, frequency_range= frequency_range, p_value= p_value,
-                                               muted_dir= muted_dir, sims_dir= sims_dir)
+                                               muted_dir= muted_dir, sims_dir= sims_dir, ind_file= ind_file)
         
         data[sim] ={
             'grids':ratio_grids,

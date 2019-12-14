@@ -1,8 +1,8 @@
 
 from tools.SLiM_pipe_tools import (
-    read_chrom_sizes, region_sample, region_samplev1,
-    fasta_Rextract, write_fastaEx, process_recipe,
-    SLiM_dispenser, 
+    read_chrom_sizes, region_samplev2,
+    fasta_RextractUnif, write_fastaEx, process_recipe,
+    SLiM_dispenserv1, 
 )
 
 
@@ -86,7 +86,7 @@ if __name__ == '__main__':
 	## Sample fasta.
 	##
 	fasta= fastas_dir + assembly + '.fa.gz'
-	rseqs= region_samplev1(L, chrom_sizes,N, fasta)
+	rseqs= region_samplev2(L, chrom_sizes,N, fasta)
 
 	from tools.SLiM_pipe_tools import SLiM_dispenserv1
 	from tools.cookbook import cook_constants_Gravel2sampleRange
