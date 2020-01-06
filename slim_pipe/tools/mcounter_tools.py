@@ -410,7 +410,7 @@ def MC_sample_matrix_v1(min_size= 80, samp= [5,20,10], diffs= False, frequency_r
     
     data_kmer= {}
     
-    for sim in sims:
+    for sim in sims[:2]:
         
         ## chromosome
         chrom= sim.split('.')[0].split('C')[-1].strip('chr')

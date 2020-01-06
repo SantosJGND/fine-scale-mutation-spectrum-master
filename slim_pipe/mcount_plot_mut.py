@@ -88,7 +88,6 @@ batch_dict= {
 ############### plots
 fig_dir= 'Figures/'
 
-
 plot_data= {
 	'pval': grid_mean,
 	'prop': prop_mean
