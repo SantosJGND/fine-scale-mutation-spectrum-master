@@ -83,15 +83,17 @@ def sort_IDs(ID_file):
 
 
 if __name__ == '__main__':
-    chromosomes, reference, short, vcf_file, dir_launch, vcf_dir, bed_filter, exc = get_args()
+
+    chromosomes, reference, short, vcf_file, dir_launch, vcf_dir, bed_filter, exc, pops, count_id = get_args()
     
     bed_tag=['','_lb_'][int(len(bed_filter) > 0)]
 
-    outfile_dir= dir_launch+'/data/mutation_count/'+ reference + bed_tag + '_finescale_mut_spectra_vcf.' + vcf_dir
+    outfile_dir= dir_launch+'/data/mutation_count/'+ reference + bed_tag + count_id + '_finescale_mut_spectra_vcf.' + vcf_dir
     os.makedirs(outfile_dir, exist_ok=True)
     outfile_dir= outfile_dir +  '/'
 
-    ind_assignments= dir_launch + '/data/sims/' + reference + '/ind_assignments.txt'
+
+    ind_assignments= dir_launch + '/data/sims/' + reference + '/' + pops
     populations, sample_id_to_population= sort_IDs(ind_assignments)
     
 

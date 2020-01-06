@@ -398,7 +398,7 @@ def vcf_muts_matrix(refseq,summary,start= 0,end= 0,ksize= 3,bases='ATCG', collap
 
 
 
-def geno_muts_v2(geno_array, vcf_muts_matrix):
+def geno_muts_v2(geno_array, vcf_muts_matrix, standardize= False):
     ''' 
     Return mutation spectrum using matrix multiplication.
     multiply mutation matrix by genotype array to obtain matrix of mutations by samples.
@@ -407,6 +407,8 @@ def geno_muts_v2(geno_array, vcf_muts_matrix):
     collapsed= vcf_muts_matrix @ geno_array.T
     
     collapsed= np.array(collapsed).T
-    collapsed= (collapsed.T/collapsed.sum(axis=1)).T
+
+    if standardize:
+        collapsed= (collapsed.T/collapsed.sum(axis=1)).T
     
     return collapsed

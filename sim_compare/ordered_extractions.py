@@ -182,7 +182,7 @@ def write_fastaEx(fasta,chrom= '1',start= 0, ID= 'SIM', fasta_dir= ''):
 
 
 
-def vcf_subtract(vcf_file,start= 0, fasta= ''):
+def vcf_subtract(vcf_file,start= 0, fasta= '', print_context= False):
     '''
     take vcf, subtract start (int) from every position. 
     '''
@@ -207,9 +207,9 @@ def vcf_subtract(vcf_file,start= 0, fasta= ''):
                 s= line.split(b'\t')
                 pos= int(s[1].decode())
                 ref= s[3].decode()
-
-                print('cc. {}'.format(pos))
-                print('cc.{},{}'.format(fasta[pos-2:pos+1],ref))
+                if print_context:
+                    print('cc. {}'.format(pos))
+                    print('cc.{},{}'.format(fasta[pos-2:pos+1],ref))
             f.write(line)
 
         infile.close()
@@ -219,9 +219,41 @@ def vcf_subtract(vcf_file,start= 0, fasta= ''):
 
 
 
+def get_differences(chrom, start, end, tag= 'test',diff_suff= '', outdir= ''):
+    '''
+    Extract ancestral allele differences at specific region
+    '''
+    start= int(start)
+    end= int(end)
+    print(start,end)
+    diff_file= diff_suff + str(chrom) + '.txt.gz'
 
-def region_extract_launch(seq_dict,vcf_file,extract_bash= "region_extract.sh",popIDs= 'ind_assignments.txt',out_dir= "", 
-                            batchName= '', logfile= 'regions.log'):
+    diff_reg= outdir + tag + '_diffs.txt.gz'
+    diff_out= gzip.open(diff_reg,'w')
+
+    with gzip.open(diff_file,'r') as f:
+        d= 0
+        for line in f:
+            if d== 0:
+                diff_out.write(line)
+                d += 1
+                continue
+
+            line= line.decode()
+            line= line.split()
+            pos= int(line[0])
+            if pos >= start and pos <= end:
+                if line[1]== 'SNP':
+                    line= '\t'.join(line)
+                    diff_out.write(line.encode())
+
+    diff_out.close()
+
+
+
+
+def region_extract_launch(seq_dict,vcf_file,popIDs= 'ind_assignments.txt',out_dir= "", 
+                            batchName= '', diff_suff= '',logfile= 'regions.log'):
     '''
     takes dictionary : {CHROM: {POS: {PosI,PosF,Fasta}}},
     for each leaf of the dictionary, launches bash script that itself runs 
@@ -254,6 +286,8 @@ def region_extract_launch(seq_dict,vcf_file,extract_bash= "region_extract.sh",po
             region_dir= out_dir + regionID + '/'
 
             os.makedirs(region_dir, exist_ok=True)
+
+            #### vcf
             new_vcf= region_dir + regionID + '_chr{}.vcf.gz'.format(chrom)
             #command_lines= ['sbatch',extract_bash,dir_vcf,vcf_file,'chr'+chrom,pos,end,new_vcf]
             command_lines= ['vcftools', '--gzvcf', dir_vcf + vcf_file,'--chr', 'chr' + chrom,
@@ -262,6 +296,7 @@ def region_extract_launch(seq_dict,vcf_file,extract_bash= "region_extract.sh",po
 
             os.system(' '.join(command_lines))
             
+            ### fasta
             fasta= seq_dict[chrom][pos]['fasta']
             print(fasta[:10])
             vcf_subtract(new_vcf,start= int(pos), fasta= fasta)
@@ -271,10 +306,17 @@ def region_extract_launch(seq_dict,vcf_file,extract_bash= "region_extract.sh",po
                     ID= regionID, fasta_dir= region_dir)
             os.system('gzip {}'.format(fasta_file))
 
-            ind_command= ['cp',popIDs,region_dir + 'ind_assignments']
+            ## ind_assignment file
+            new_ids= popIDs.split('/')[-1]
+            ind_command= ['cp',popIDs,region_dir + new_ids]
             os.system(' '.join(ind_command))
             #write_popIDs(sample_sizes, file_dir= region_dir)
 
+            ## get differences:
+            if diff_suff:
+                print('read diffs')
+                get_differences(chrom, pos, end, tag= regionID,diff_suff= diff_suff, outdir= region_dir)
+            ## write to log
             INFO= [regionID,'L='+L]
 
             with open(logfile,'a') as f:
@@ -296,7 +338,14 @@ if __name__ == '__main__':
 
     parser.add_argument('-a', '--assembly', type=str, default= 'hg38')
 
+    parser.add_argument('-c', '--chrom', type=str, default= '')
+
     parser.add_argument('-b', '--batch', type=str,default= 'test')
+
+    parser.add_argument('-d', '--diff', type=str,
+        default= '',help= 'suffix for diff file.')
+
+    parser.add_argument('-i', '--ids', type=str, default= '')
 
     parser.add_argument('-o', '--out', type=str, default= '')
 
@@ -308,29 +357,26 @@ if __name__ == '__main__':
     size_dir= "/home/jgarc235/Rhesus/chrom_sizes/" 
     chrom_sizes= read_chrom_sizes(args.assembly, size_dir= size_dir)
     
-    fastas_dir= "/home/jgarc235/Rhesus/Fastas/"
+    fastas_dir= "/home/jgarc235/Fastas/"
     fasta= fastas_dir + args.assembly + '.fa.gz'
 
-    """
-     region_samplev3(L, chrom_sizes, N, fasta_file= '', 
-        fasta_utils= {}):
-    """
+
     fasta_utils= {
         'p1': fasta_RextractUnif_v1,
         'p2': return_seqs_v1
     }
+
+    if args.chrom:
+        chrom_sizes= {args.chrom: chrom_sizes[args.chrom]}
+
     rseqs= region_samplev3(args.length, chrom_sizes, args.number, fasta_file= fasta,
         fasta_utils= fasta_utils)  
 
     ##
-    extractSH_dir= "/home/jgarc235/Rhesus/bash_commands/Extract/"
-    bashExtract= "region_extract_mt.sh"
+    assignments= args.ids
 
-    assignments= '/home/jgarc235/Rhesus/Mutation_study/ind_assignments.txt'
-    outdir= '/home/jgarc235/Sim_compare/data/'
-
-    region_extract_launch(rseqs,args.vcf,extract_bash= bashExtract,popIDs= assignments,out_dir= args.out, 
-                            batchName= args.batch, logfile= 'regions.log')
+    region_extract_launch(rseqs,args.vcf,popIDs= assignments,out_dir= args.out, 
+                            batchName= args.batch, diff_suff= args.diff,logfile= 'regions.log')
 
 
 

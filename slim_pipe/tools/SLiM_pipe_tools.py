@@ -66,7 +66,7 @@ def fasta_RextractUnif(fasta,seq_store,L= 10000):
     }
     
     d= 0
-     
+    
     with gzip.open(fasta,'rb') as fp:
         for line in fp:
             #line= line.decode()
@@ -117,7 +117,6 @@ def return_seqs(seq,size= 10,L= 1000,keep= ['A','T','G','C']):
         scrag= [x for x in given if x not in keep]
         
         if len(scrag) == 0:
-            print(scrag)
             seq_dict[pos]= given
             
             d += 1
@@ -156,18 +155,39 @@ def process_recipe(recipe,constant_dict, SIMname):
     defConst= '\tdefineConstant({},{});\n'
     
     for v,g in constant_dict.items():
-        if isinstance(g,str):
-            newline= defConst.format('"{}"'.format(v),'"{}"'.format(g))
-        else:
-            newline= defConst.format('"{}"'.format(v),str(g))
-        
-        lines.insert(init_idx+1,newline)
+        if v != "other":
+            if isinstance(g,str):
+                newline= defConst.format('"{}"'.format(v),'"{}"'.format(g))
+            else:
+                newline= defConst.format('"{}"'.format(v),str(g))
+            
+            lines.insert(init_idx+1,newline)
     
     with open(new_recipe,'w') as f:
         f.write(''.join(lines))
     
     return new_recipe
 
+
+
+def process_recipe_other(recipe,constant_dict, SIMname):
+    '''add constant definitions to a SLiM recipe'''
+    
+    with open(recipe,'r') as f:
+        lines= f.readlines()
+    
+    other= constant_dict["other"]
+    other_idx= {
+        z: [x +1 for x in range(len(lines)) if z in lines[x]][0] for z in other.keys()
+    }
+    
+    for v in other_idx.keys():
+        lines.insert(other_idx[v],other[v])
+
+    with open(recipe,'w') as f:
+        f.write(''.join(lines))
+    
+    return recipe
 
 
 
@@ -184,6 +204,9 @@ def SLiM_dispenserv1(sim_store, sim_recipe, cookID= 'ID', slim_dir= './', batch_
         
         ### generate modified slim recipe
         new_recipe= process_recipe(sim_recipe,command_line_constants, SIMname)
+
+        if "other" in command_line_constants:
+            new_recipe= process_recipe_other(new_recipe,command_line_constants,SIMname)
         
         seed= np.random.randint(0,high= nf,size= 1)[0]
         ### Launch SLiM through shell.

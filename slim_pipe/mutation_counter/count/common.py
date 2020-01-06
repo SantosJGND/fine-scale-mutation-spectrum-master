@@ -13,6 +13,9 @@ def get_args():
     valid_chromosomes = ['X'] + [str(i) for i in range(1, 21)]
 
     parser = argparse.ArgumentParser()
+    parser.add_argument('-i', '--id', type=str,
+                        default='')
+
     parser.add_argument('-c', '--chromosomes', type=str, nargs='+',
                         default=valid_chromosomes)
 
@@ -24,6 +27,9 @@ def get_args():
 
     parser.add_argument('-v', '--vcf', type=str,
                         default='')
+
+    parser.add_argument('-p', '--pops', type=str,
+                        default='ind_assignments.txt')
 
     parser.add_argument('-d', '--dir', type=str,
                         default='..')
@@ -44,7 +50,7 @@ def get_args():
 
     chromosomes = parser.parse_args(sys.argv[1:]).chromosomes
 
-    return chromosomes, args.ref, args.short, args.vcf, args.dir, args.vcfdir, args.bedfilter, args.exclude
+    return chromosomes, args.ref, args.short, args.vcf, args.dir, args.vcfdir, args.bedfilter, args.exclude, args.pops, args.id
 
 
 def get_chromosomes_from_args():

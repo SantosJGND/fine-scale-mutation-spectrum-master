@@ -83,9 +83,9 @@ def frequency_breakdown(path, chromosomes, frequency_range):
 
 
 def heatmap(chromosomes, population_pair, frequency_range, exclude, 
-                p_value, short,muted_dir,output= 'pval'):
+                p_value, short,muted_dir,tag= '',output= 'pval'):
 
-    outdir= muted_dir + '{}_finescale_mut_spectra_vcf.{}/'.format(short,short)
+    outdir= muted_dir + '{}{}_finescale_mut_spectra_vcf.{}/'.format(short,tag,short)
 
     if exclude:
         files= read_exclude()

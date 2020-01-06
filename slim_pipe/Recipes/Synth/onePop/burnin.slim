@@ -1,0 +1,55 @@
+// this version of the recipe is meant to be passed arguments:
+// - fasta_file;
+// - vcf_file;
+// - s1: number of inds to sample
+// - NeC: population effective size.
+// - Nef: final population effective size.
+// - Grate: growth rate
+
+//initializeMutationRate(2.36e-8);
+initialize() {
+	initializeSLiMOptions(nucleotideBased=T);
+	defineConstant("L", initializeAncestralNucleotides(fasta_file));
+	initializeMutationTypeNuc("m1", 0.5, "f", 0.0);
+	initializeGenomicElementType("g1", m1, 1.0, mmJukesCantor(3.3e-9));
+	initializeGenomicElement(g1, 0, L-1);
+	initializeRecombinationRate(1e-8);
+        defineConstant("diff",abs(NeC - Nef));
+}
+
+// Create the ancestral population
+//
+1 { 
+	sim.addSubpop("p1", NeC);
+	c = sim.chromosome;
+	catn("Ancestral: " + paste(c.ancestralNucleotides(format="char")[0:20],sep=""));
+        catn("diff");
+	catn(diff);
+	catn("#");
+	catn(s1);
+        catn(Grate);
+        catn(Nef);
+        catn(NeC);
+	catn();
+}
+
+
+//grow
+	newSize = asInteger(round(Grate^(sim.generation - (evt - 1)) * NeC));
+        Schange = abs(NeC - p1.individualCount);
+        if (Schange <= diff)
+	{
+		newSize = Nef;
+		catn(newSize);
+		catn("fsize");
+		sim.deregisterScriptBlock(self);
+	}
+	p1.setSubpopulationSize(newSize);
+}
+
+
+//sample
+	g= p1.sampleIndividuals(s1).genomes;
+	g.outputVCF(vcf_file,simplifyNucleotides=T);
+}
+

@@ -21,7 +21,7 @@ class MutationCounter:
 
         print(reference)
 
-
+    
     def configure(self, line, sample_id_to_population, dir_launch='..',ancestral_check= False):
         column_labels = line.split()
         self.n_lineages = 2 * (len(column_labels) - 9)

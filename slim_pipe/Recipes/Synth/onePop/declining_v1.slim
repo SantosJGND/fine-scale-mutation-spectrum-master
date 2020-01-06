@@ -1,0 +1,41 @@
+// this version of the recipe is meant to be passed arguments:
+// - fasta_file;
+// - vcf_file;
+// - s1, s2
+
+//initializeMutationRate(2.36e-8);
+initialize() {
+	initializeSLiMOptions(nucleotideBased=T);
+	defineConstant("NeC",20000);
+	defineConstant("L", initializeAncestralNucleotides(fasta_file));
+	initializeMutationTypeNuc("m1", 0.5, "f", 0.0);
+	initializeGenomicElementType("g1", m1, 1.0, mmJukesCantor(3.3e-9));
+	initializeGenomicElement(g1, 0, L-1);
+	initializeRecombinationRate(1e-8);
+}
+
+// Create the ancestral population
+//
+1 { 
+	sim.addSubpop("p1", NeC);
+	c = sim.chromosome;
+	catn("Ancestral: " + paste(c.ancestralNucleotides(format="char")[0:20],sep=""));
+	catn();
+}
+
+// Split populations after burnin of 50000 gens.
+// New_population Ne= 20000
+50000 {
+	sim.addSubpopSplit("p2", NeC, p1);
+}
+
+// Generation 58000 is the present. Output to VCF.
+60000 late() {
+	g = c();
+	pops= 0:1;
+	samples= c(s1,s2);
+	for (x in pops) 
+		g= c(g, sim.subpopulations[x].sampleIndividuals(samples[x]).genomes);
+	
+	g.outputVCF(vcf_file,simplifyNucleotides=T);
+}

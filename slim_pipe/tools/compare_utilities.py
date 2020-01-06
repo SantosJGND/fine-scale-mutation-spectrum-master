@@ -59,10 +59,10 @@ def get_available_muts(muted_log):
     return available
 
 
-def pops_from_sim(sim,sims_dir= './mutation_counter/data/sims/',pop_set= True):
+def pops_from_sim(sim,sims_dir= './mutation_counter/data/sims/',ind_file= "ind_assignments.txt",pop_set= True):
     '''read sim specific int to pop assignment, return pops.'''
     sim_dir= sims_dir + '{}/'.format(sim)
-    ID_file= sim_dir + "ind_assignments.txt"
+    ID_file= sim_dir + ind_file
 
     pops= []
     with open(ID_file,'r') as sample_id_lines:
@@ -77,12 +77,11 @@ def pops_from_sim(sim,sims_dir= './mutation_counter/data/sims/',pop_set= True):
         return pops
 
 
-
-def count_compare(sim, frequency_range= [0,1], p_value= 1e-5, extract= 'pval',muted_dir= './mutation_counter/data/mutation_count/',
-                  sims_dir= './mutation_counter/data/sims/', exclude= False):
+def count_compare(sim, frequency_range= [0,1], p_value= 1e-5, extract= 'pval', tag= '', muted_dir= './mutation_counter/data/mutation_count/',
+                  sims_dir= './mutation_counter/data/sims/', exclude= False, ind_file= "ind_assignments.txt"):
     
     ''' perform pairwise population comparison of mutation counts for particular simulation'''
-    pops= pops_from_sim(sim,sims_dir= sims_dir)
+    pops= pops_from_sim(sim,sims_dir= sims_dir, ind_file= ind_file)
 
     ### change this 
     focus= pops[0]
@@ -110,7 +109,7 @@ def count_compare(sim, frequency_range= [0,1], p_value= 1e-5, extract= 'pval',mu
     heatmaps = [
         heatmap(
             chromosomes, population_pair, frequency_range, exclude, 
-            p_value, sim, muted_dir, output= extract
+            p_value, sim, muted_dir, tag= tag, output= extract
         ) for chromosomes, population_pair in chrom_pop
     ]
 
@@ -119,16 +118,18 @@ def count_compare(sim, frequency_range= [0,1], p_value= 1e-5, extract= 'pval',mu
     return ratio_grids, significant_indices
 
 
+
+
 def deploy_count(available, frequency_range= [0,1], p_value= 1e-5, extract= 'pval',muted_dir= './mutation_counter/data/mutation_count/',
-                  sims_dir= './mutation_counter/data/sims/'):
+                  sims_dir= './mutation_counter/data/sims/', tag= '', ind_file= "ind_assignments.txt"):
     
     ''' deploy count_compare() across simulations read from. '''
     data= {}
     
     for sim in available:
         
-        ratio_grids, significant_indices= count_compare(sim, frequency_range= frequency_range, p_value= p_value,
-                                               muted_dir= muted_dir, sims_dir= sims_dir)
+        ratio_grids, significant_indices= count_compare(sim, frequency_range= frequency_range, p_value= p_value, tag= tag,
+                                               muted_dir= muted_dir, sims_dir= sims_dir, ind_file= ind_file)
         
         data[sim] ={
             'grids':ratio_grids,
@@ -139,8 +140,8 @@ def deploy_count(available, frequency_range= [0,1], p_value= 1e-5, extract= 'pva
 
 
 
-
 #####
+
 
 
 def check_availability(available,str_format= '',dir_check= ''):
@@ -189,7 +190,7 @@ def clean_empty(available,str_format= '',dir_check= '',requested= ['.vcf.gz']):
         files= [x[-1] for x in os.walk(dirhere)][0]
         
         present= [x for x in files if len([y for y in requested if y in x]) > 0]
-        if len(present):
+        if len(present) >= len(requested):
             av.append(ori)
         else: miss.append(ori)
     
