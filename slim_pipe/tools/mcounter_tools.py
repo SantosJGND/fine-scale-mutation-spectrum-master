@@ -410,7 +410,9 @@ def MC_sample_matrix_v1(min_size= 80, samp= [5,20,10], diffs= False, frequency_r
     
     data_kmer= {}
     
-    for sim in sims[:2]:
+    #sim_sample= np.random.choice(sims,8,replace= False)
+    
+    for sim in sims:
         
         ## chromosome
         chrom= sim.split('.')[0].split('C')[-1].strip('chr')
@@ -580,7 +582,6 @@ def vcf_muts_matrix_v1(refseq,summary,start= 0,end= 0,ksize= 3,bases='ATCG', col
             if kmer[1] == summary.ALT[x]:
                 flag_reverse.append(x)
                 mut= kmer+summary.REF[x]
-            
             
             if len(mut) != 4: 
                 print(kmer)

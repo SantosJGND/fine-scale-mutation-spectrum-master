@@ -5,6 +5,17 @@ from tools.SLiM_pipe_tools import (
     write_fastaEx, write_popIDs
     )
 
+
+def write_args(args_dict,SIMname,SIM_dir):
+    '''
+    *args.txt file stores recipe arguments.
+    '''
+    with open(SIM_dir + '/' + SIMname + "_args.txt",'w') as f:
+        for v,g in args_dict.items():
+            if v != "other":
+                f.write("\t".join([str(v),str(g)]) + '\n')
+
+
 def cook_constants_v1(fasta_dict, dir_data= "./data/sims/", 
             dir_vcf= "vcf_data/", slim_dir= './', batch_name= ''):
     '''
@@ -41,6 +52,8 @@ def cook_constants_v1(fasta_dict, dir_data= "./data/sims/",
                 "s3": 206
             }
             
+            ### write arguments to file
+            write_args(sim_store[SIMname],SIMname,SIM_dir)
             ### population identifiers file
             sample_sizes= [sim_store[SIMname][x] for x in ["s1","s2","s3"]]
             write_popIDs(sample_sizes,file_dir= SIM_dir)
@@ -98,6 +111,8 @@ def cook_constants_Gravel2sampleRange(fasta_dict, nrange= [.05,.5], step= 10,
                 "s3": s3
             }
             
+            ### write arguments to file
+            write_args(sim_store[SIMname],SIMname,SIM_dir)
             ### population identifiers file
             sample_sizes= [sim_store[SIMname][x] for x in ["s1","s2","s3"]]
             write_popIDs(sample_sizes,file_dir= SIM_dir)
@@ -155,6 +170,8 @@ def cook_constants_simple2split(fasta_dict, nrange= [.05,.5], step= 10,
                 "s2": s2range[d],
             }
             
+            ### write arguments to file
+            write_args(sim_store[SIMname],SIMname,SIM_dir)
             ### population identifiers file
             sample_sizes= [sim_store[SIMname][x] for x in ["s1","s2"]]
             write_popIDs(sample_sizes,file_dir= SIM_dir)
@@ -208,7 +225,9 @@ def cook_constants_SizeChange(fasta_dict, s1= 1092, NeC= 2e5, Nef= 4e5, Grate= 1
                 "Nef": Nef,
                 "Grate": Grate,
             }
-            
+
+            ### write arguments to file
+            write_args(sim_store[SIMname],SIMname,SIM_dir)            
             ### population identifiers file
             sample_sizes= [sim_store[SIMname][x] for x in ["s1"]]
             write_popIDs(sample_sizes,file_dir= SIM_dir)
@@ -273,12 +292,9 @@ def cook_constants_Burnin(fasta_dict, bt= 50000, sdelay= 1000,s1= 1092, NeC= 2e5
                     "//sample": "{} late() ".format(st) + "{"
                 }
             }
-
-            with open(SIM_dir + '/' + SIMname + "_args.txt",'w') as f:
-                for v,g in sim_store[SIMname].items():
-                    if v != "other":
-                        f.write("\t".join([str(v),str(g)]) + '\n')
-
+            
+            ### write arguments to file
+            write_args(sim_store[SIMname],SIMname,SIM_dir)
             ### population identifiers file
             sample_sizes= [sim_store[SIMname][x] for x in ["s1"]]
             write_popIDs(sample_sizes,file_dir= SIM_dir)
@@ -286,5 +302,4 @@ def cook_constants_Burnin(fasta_dict, bt= 50000, sdelay= 1000,s1= 1092, NeC= 2e5
             d += 1
     
     return sim_store, cookID
-
 
