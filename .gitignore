@@ -8,5 +8,6 @@ mutation_counter/data/
 Subset_explore/data/
 Subset_explore/vcf/
 slim_pipe/mutation_counter/data/
+slim_pipe/Figures/
 slim_pipe/Fastas/
-sim_compare/mutation_counter/data
+sim_compare/mutation_counter/data/

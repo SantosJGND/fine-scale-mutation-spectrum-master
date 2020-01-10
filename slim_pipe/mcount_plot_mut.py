@@ -1,7 +1,7 @@
 
 from tools.mcounter_tools import (
     read_vcf_allel, ind_assignment_scatter_v1, MC_sample_matrix_v1,
-    heatmap_v2
+    heatmap_v2, read_args
 )
 
 #from tools.SLiM_pipe_tools import mutation_counter_launch
@@ -25,7 +25,7 @@ bases= 'ATCG'
 ksize= 3
 
 
-data = MC_sample_matrix_v1(min_size= min_size, samp= sampling, count_dir= count_dir, 
+data, data_freqs = MC_sample_matrix_v1(min_size= min_size, samp= sampling, count_dir= count_dir, 
                         dir_launch= dir_launch,main_dir= main_dir,sim_dir= sims_dir,
                           muted_dir= muted_dir, diffs= diffs,
                        exclude= False)
@@ -46,7 +46,7 @@ extract= 'pval'
 
 pop_asso, count_data= mcounter_deploy(data,p_value= p_value, test_m= test_m, individually= individually,
                                         exclude= exclude, frequency_range= frequency_range, extract= extract,
-                                     muted_dir= muted_dir)
+                                     muted_dir= muted_dir, data_freqs= data_freqs)
 
 
 ############## mutation grids
@@ -138,7 +138,7 @@ compound_kmer= {
 
 
 #####################################################
-#####################################################
+##################################################### KMER
 
 ## plot first for every mutation context.
 for kmer in mut_grid.keys():
@@ -193,7 +193,7 @@ for kmer in mut_grid.keys():
 
             plt.errorbar(x,y,yerr=error)
             plt.xlabel(xlab + ' {} comparisons'.format(len(batch_dict[i])))
-            plt.ylim(0,1.03)
+            plt.ylim(0,1.5)
             plt.ylabel(ylab)
             plt.title(i)
 
@@ -213,25 +213,23 @@ for kmer in mut_grid.keys():
             plt.errorbar(batch_hold[i]['x'],batch_hold[i]['y'],yerr=batch_hold[i]['error'],label= i)
 
         plt.xlabel(xlab)
-        plt.ylim(0,1.03)
+        plt.ylim(0,1.5)
         plt.ylabel(ylab)
         plt.title('combined stats')
-        
         plt.legend()
+
         plt.savefig(fig_kmer + 'combined_{}_{}.png'.format(kmer,strata),bbox_inches='tight')
         plt.close()
 
 
 ##########################################
-##########################################
-
-
+########################################## GEN
 
 xlab= 'relative sampling'
 ylab= 'mean matrix p-val'
 
 for i in batch_dict.keys(): 
-    plt.figure(figsize=(10, 10))
+    plt.figure(figsize=(20, 10))
 
     for kmer in mut_grid.keys():
 
@@ -265,42 +263,35 @@ for i in batch_dict.keys():
             x= sorted(xprep.keys())
             y= [np.mean(yprep[z]) for z in x]
             error= [np.std(yprep[z]) for z in x]
-
-            batch_hold[i]= {
-                'x': x,
-                'y': y,
-                'error': error
-            }
             
-            plt.errorbar(x,y,yerr=error,label= i)
+            plt.errorbar(x,y,yerr=error)
 
     plt.xlabel(xlab)
-    plt.ylim(0,1.03)
+    plt.ylim(0,1.5)
     plt.ylabel(ylab)
     plt.title('combined stats')
 
-    #plt.legend()
     plt.savefig(fig_dir + 'combined_{}_{}.png'.format(i,strata),bbox_inches='tight')
     plt.close()
 
 
 
-#############################################################
-#############################################################
+############################################################# 
+############################################################# STRATA
 
 
 for strata in ['prop','pval']:
 
-    plt.figure(figsize=(10,10))
+    plt.figure(figsize=(20,10))
     
     for batch in batch_dict.keys():
         global_x= sorted(list(compound_kmer[strata][batch].keys()))
         global_y= [np.mean(compound_kmer[strata][batch][x]) for x in global_x]
         global_error= [np.std(compound_kmer[strata][batch][x]) for x in global_x]
         
-        plt.errorbar(global_x,global_y,yerr=global_error)
+        plt.errorbar(global_x,global_y,yerr=global_error,label= batch)
     plt.xlabel(xlab)
-    plt.ylim(0,1.03)
+    plt.ylim(0,1.5)
     plt.ylabel(ylab)
     plt.title('combined stats')
 
@@ -309,5 +300,103 @@ for strata in ['prop','pval']:
     plt.close()
 
 
+    plt.figure(figsize=(20,10))
+    
+    for batch in batch_dict.keys():
+        global_x= sorted(list(compound_kmer[strata][batch].keys()))
+        
+        global_error= [np.std(compound_kmer[strata][batch][x]) for x in global_x]
+        plt.plot(global_x,global_error,label= batch)
+    
+    plt.xlabel(xlab)
+    plt.ylim(0,1.5)
+    plt.ylabel('variance')
+    plt.title('combined stats')
+    
+    plt.legend()
+    plt.savefig(fig_dir + 'combined_{}_{}.png'.format('variance',strata),bbox_inches='tight')
+    plt.close()
+
+
+
 ##############################################################
-##############################################################
+############################################################## SFS
+
+
+fig_dir= 'Figures/kmers/'
+mu= 1e-8
+N_inds= 1000
+xlab= 'sampling proportion'
+ylab= 'sum of sqared differences.'
+
+batch_sfs= {}
+
+for i in batch_dict.keys():
+    sims= [avail_sub[x] for x in batch_dict[i]]
+    print(len(sims))
+    counts= []
+    props= [pop_proportions[x] for x in batch_dict[i]] 
+
+    for sim_idx in sims:
+        freqs_dict= count_data[sim_idx]['freqs']
+        sfs= []
+        
+        for pop in freqs_dict.keys():
+
+            #print(gen_time)
+            freqs= freqs_dict[pop]
+            N= len(freqs)
+            
+            bin_count= np.histogram(freqs,bins= N_inds,range= [0,1])[0]
+            bin_count= bin_count / sum(bin_count)
+            bin_count= np.array(bin_count)
+            sfs.append(bin_count)
+
+        dist_vec= sfs[0] - sfs[1] #/ np.sum(indian + x)
+        dist_vec= dist_vec**2
+        dist_vec= np.sum(dist_vec)
+        
+        counts.append(dist_vec)
+
+    props_dict= {
+        z: [counts[x] for x in range(len(props)) if props[x] == z] for z in list(set(props))
+    }
+
+    props_sorted= sorted(props_dict.keys())
+    props_means= [np.mean(props_dict[x]) for x in props_sorted]
+    props_std= [np.std(props_dict[x]) for x in props_sorted]
+
+    batch_sfs[i]= [props_sorted,props_means,props_std]
+
+    plt.figure(figsize=(20,10))
+
+    plt.xlabel(xlab)
+    #plt.ylim(0,1.03)
+    plt.ylabel(ylab)
+    plt.title('sfs_differences.')
+    
+    plt.errorbar(props_sorted,props_means,yerr=props_std)
+    
+    plt.savefig(fig_dir + 'SFS_{}.png'.format(i),bbox_inches='tight')
+    plt.close()
+
+
+plt.figure(figsize=(15,10))
+
+plt.xlabel(xlab)
+#plt.ylim(0,1.03)
+plt.ylabel(ylab)
+plt.title('sfs_differences')
+
+for i in batch_sfs.keys():
+    plt.errorbar(batch_sfs[i][0],batch_sfs[i][1],yerr=batch_sfs[i][2],label= i)
+
+plt.legend()
+plt.savefig(fig_dir + 'SFS_combined.png',bbox_inches='tight')
+plt.close() 
+
+
+
+
+
+

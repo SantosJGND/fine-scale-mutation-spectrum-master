@@ -409,7 +409,7 @@ def MC_sample_matrix_v1(min_size= 80, samp= [5,20,10], diffs= False, frequency_r
     chroms= []
     
     data_kmer= {}
-    
+    data_freqs= {}
     #sim_sample= np.random.choice(sims,8,replace= False)
     
     for sim in sims:
@@ -500,6 +500,9 @@ def MC_sample_matrix_v1(min_size= 80, samp= [5,20,10], diffs= False, frequency_r
         s0= time.time()
         data_kmer[sim]= count_popKmers(Window, mut_matrix, pop_dict, single= single, 
                                   frequency_range= frequency_range,row=row,col=col)
+
+        pop_freqs= pop_dict_SFS(Window,pop_dict)
+        data_freqs[sim]= pop_freqs
         
         t1= time.time()
         count_time= t1- t0
@@ -526,6 +529,11 @@ def MC_sample_matrix_v1(min_size= 80, samp= [5,20,10], diffs= False, frequency_r
                 
                 data_kmer[new_sim]= count_popKmers(Window, mut_matrix, pop_dict, single= single, 
                                   frequency_range= frequency_range,row=row,col=col)
+
+                pop_freqs= pop_dict_SFS(Window,pop_dict)
+                data_freqs[new_sim]= pop_freqs
+                
+
         if print_summ:
             print('mut_matrix time: {} s'.format(time_mut / 60))
             print('count time: {} s'.format(count_time / 60))
@@ -538,7 +546,8 @@ def MC_sample_matrix_v1(min_size= 80, samp= [5,20,10], diffs= False, frequency_r
     
     print('time elapsed: {}s'.format(time_elapsed))
     
-    return data_kmer
+
+    return data_kmer, data_freqs
 
 
 ##################################################################
@@ -747,7 +756,7 @@ def read_vcf_allel(file_vcf):
 
 
 def mcounter_deploy(data,p_value= 1e-5, test_m= 'fisher', individually= False,
-                            exclude= False, frequency_range= [0,1], extract= 'pval',
+                            exclude= False, frequency_range= [0,1], data_freqs= {}, extract= 'pval',
                             muted_dir= '', tag_ref= '_ss'):
     '''
     Parse data dictionary.
@@ -805,6 +814,9 @@ def mcounter_deploy(data,p_value= 1e-5, test_m= 'fisher', individually= False,
                                                   pop_dict,frequency_range, exclude, 
                                                     p_value, muted_dir,tag= '',test= test_m,output= 'pval')
 
+                pop_counts[sub]= pop_counts[sub] / np.sum(pop_counts[sub])
+                pop_counts[ref]= pop_counts[ref] / np.sum(pop_counts[ref])
+
                 dist_prop= pop_counts[sub] / pop_counts[ref]
 
                 count_data[d]= {
@@ -815,6 +827,13 @@ def mcounter_deploy(data,p_value= 1e-5, test_m= 'fisher', individually= False,
                     'prop': dist_prop,
                     'pop': pop
                 }
+
+                if data_freqs:
+                    count_data[d]['freqs']= {
+                        'ref': data_freqs[ref][pop],
+                        'sub': data_freqs[sub][pop_asso[ref][pop][sub]]
+                    }
+
 
                 d += 1
     
@@ -983,9 +1002,27 @@ def ind_assignment_SFS(reference,Window, dir_sim= '',indfile= 'ind_assignments.t
     
     for pop in pop_dict.keys():
         pop_gen= Window[pop_dict[pop],:]
-        freqs= np.sum(pop_gen,axis= 0) / pop_gen.shape[0]
+        freqs= np.sum(pop_gen,axis= 0) / (2*pop_gen.shape[0])
         pop_freqs[pop]= freqs
         ## discount alleles outside freq range.
 
     return pop_dict, pop_freqs
+
+
+
+def pop_dict_SFS(Window, pop_dict):
+    '''
+    read allele frequencies.
+    '''
+    
+    pop_freqs= {}
+    
+    for pop in pop_dict.keys():
+        pop_gen= Window[pop_dict[pop],:]
+        freqs= np.sum(pop_gen,axis= 0) / (2*pop_gen.shape[0])
+        pop_freqs[pop]= freqs
+        ## discount alleles outside freq range.
+
+    return pop_freqs
+
 
