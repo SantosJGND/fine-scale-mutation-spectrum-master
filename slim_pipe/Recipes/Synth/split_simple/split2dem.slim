@@ -1,0 +1,61 @@
+// this version of the recipe is meant to be passed arguments:
+// - fasta_file;
+// - vcf_file;
+// - s1 : both populations are sampled to the same size. 
+// - NeC: population effective size.
+// - Nef: final population effective size.
+// - Grate: growth rate
+// two populations split, and one undergoes demographic change. 
+
+
+initialize() {
+	initializeSLiMOptions(nucleotideBased=T);
+	defineConstant("NeC",20000);
+	defineConstant("L", initializeAncestralNucleotides(fasta_file));
+	initializeMutationTypeNuc("m1", 0.5, "f", 0.0);
+	initializeGenomicElementType("g1", m1, 1.0, mmJukesCantor(3.3e-9));
+	initializeGenomicElement(g1, 0, L-1);
+	initializeRecombinationRate(1e-8);
+}
+
+// Create the ancestral population
+//
+1 { 
+	sim.addSubpop("p1", NeC);
+	c = sim.chromosome;
+	catn("Ancestral: " + paste(c.ancestralNucleotides(format="char")[0:20],sep=""));
+	catn();
+}
+
+// Split populations after burnin of 50000 gens.
+// New_population Ne= 20000
+50000 {
+	sim.addSubpopSplit("p2", NeC, p1);
+}
+
+
+// Demographic change in the second population
+// grow / change population to
+60000: {
+	newSize = asInteger(round(Grate^(sim.generation - 69999) * NeC));
+    Schange = abs(NeC - p1.individualCount);
+    if (Schange <= diff)
+	{
+		newSize = Nef;
+		catn(newSize);
+		catn("fsize");
+		sim.deregisterScriptBlock(self);
+	}
+	p1.setSubpopulationSize(newSize);
+}
+
+// Generation 58000 is the present. Output to VCF.
+70000 late() {
+	g = c();
+	pops= 0:1;
+	samples= c(s1,s1);
+	for (x in pops) 
+		g= c(g, sim.subpopulations[x].sampleIndividuals(samples[x]).genomes);
+	
+	g.outputVCF(vcf_file,simplifyNucleotides=T);
+}

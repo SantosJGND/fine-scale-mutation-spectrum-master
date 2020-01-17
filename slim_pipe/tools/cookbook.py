@@ -182,7 +182,6 @@ def cook_constants_simple2split(fasta_dict, nrange= [.05,.5], step= 10,
 
 
 
-
 def cook_constants_SizeChange(fasta_dict, s1= 1092, NeC= 2e5, Nef= 4e5, Grate= 1.03,
             dir_data= "./data/", dir_vcf= "vcf_data/sims/", 
             slim_dir= './', batch_name= ''):
@@ -251,7 +250,7 @@ def cook_constants_Burnin(fasta_dict, bt= 50000, sdelay= 1000,s1= 1092, NeC= 2e5
         - Nef: effective population size after change.
         - Grate: growth rate during change. 
     '''
-    cookID= 'burnin_test'
+    cookID= 'burnin'
     sim_store= {}
 
     possible= sum([len(fasta_dict[x]) for x in fasta_dict.keys()])
@@ -288,8 +287,8 @@ def cook_constants_Burnin(fasta_dict, bt= 50000, sdelay= 1000,s1= 1092, NeC= 2e5
                 "Grate": Grate,
                 "evt": evt,
                 "other": {
-                    "//grow": "{}: ".format(evt) + "{",
-                    "//sample": "{} late() ".format(st) + "{"
+                    "//grow": "{}: ".format(evt) + "{\n",
+                    "//sample": "{} late() ".format(st) + "{\n"
                 }
             }
             
@@ -303,3 +302,58 @@ def cook_constants_Burnin(fasta_dict, bt= 50000, sdelay= 1000,s1= 1092, NeC= 2e5
     
     return sim_store, cookID
 
+
+
+def cook_constants_rateVar(fasta_dict, mu= 1e-8, mut_file= 'mut_matrix_v0.txt', s1= 1092, NeC= 2e5, Nef= 4e5, Grate= 1.03,
+            dir_data= "./data/", dir_vcf= "vcf_data/sims/", 
+            slim_dir= './', batch_name= ''):
+    '''
+    set up conditions.
+    constants:
+        - vcf_file;
+        - fasta_file - writes fasta; mkdir fasta_dir
+        - sampling: 
+            s1 (int) to vary in range=nrange as proportion of Nmax;
+        - NeC: initial population eff. size.
+        - Nef: effective population size after change.
+        - Grate: growth rate during change. 
+    '''
+    cookID= 'rateVar'
+    sim_store= {}
+
+    for chrom in fasta_dict.keys():
+        for start in fasta_dict[chrom].keys():
+            fasta= fasta_dict[chrom][start]
+
+            ### set up names and directories.
+            SIMname= batch_name + 'C{}.{}'.format(chrom,str(start))
+            SIM_dir= dir_data + SIMname
+            
+            os.makedirs(SIM_dir, exist_ok=True)
+            
+            vcf_file= SIM_dir + '/' + SIMname + "_chr{}.vcf".format(chrom)
+            #ref_dir= SIM_dir + SIMname + '_reference'
+               
+            ### write fasta file for SLiM.
+            fasta_file= write_fastaEx(fasta,chrom=chrom,start= start,
+                          ID= SIMname,fasta_dir= SIM_dir)
+            
+            sim_store[SIMname]= {
+                "vcf_file": vcf_file,
+                "fasta_file": fasta_file,
+                "s1": s1,
+                "NeC": NeC,
+                "Nef": Nef,
+                "Grate": Grate,
+                "mu": mu,
+                "mut_file": mut_file
+                #"other": {'//mut_file': '\tfile_mut= readFile("{}");\n'.format(mut_file)}  
+            }
+
+            ### write arguments to file
+            write_args(sim_store[SIMname],SIMname,SIM_dir)            
+            ### population identifiers file
+            sample_sizes= [sim_store[SIMname][x] for x in ["s1"]]
+            write_popIDs(sample_sizes,file_dir= SIM_dir)
+    
+    return sim_store, cookID

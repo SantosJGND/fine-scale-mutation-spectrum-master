@@ -394,7 +394,7 @@ def read_diffs(tag,diff_dir= '',start= 0):
 
 def MC_sample_matrix_v1(min_size= 80, samp= [5,20,10], diffs= False, frequency_range= [0,1],indfile= 'ind_assignments.txt', outemp= 'ind_assignments{}.txt',
                     count_dir= './count/', dir_launch= '..',main_dir= './', sim_dir= 'mutation_counter/data/sims/', muted_dir= 'mutation_counter/data/mutation_count/',
-                    outlog= 'indy.log', row= 24,col= 4, single= True, exclude= False, print_summ= False):
+                    outlog= 'indy.log', row= 24,col= 4, single= True, exclude= False, print_summ= False, sample_sim= 0):
     '''
     launch mutation counter pipeline on manipulated population assignments.
     Use matrix multiplication to extract counts. 
@@ -403,7 +403,8 @@ def MC_sample_matrix_v1(min_size= 80, samp= [5,20,10], diffs= False, frequency_r
     
     ti= time.time()
     sims= process_dir(sims_dir= sim_dir)
-    print(len(sims))
+    print('available {}'.format(len(sims)))
+
     tags= []
     sim_extend= []
     chroms= []
@@ -411,8 +412,13 @@ def MC_sample_matrix_v1(min_size= 80, samp= [5,20,10], diffs= False, frequency_r
     data_kmer= {}
     data_freqs= {}
     #sim_sample= np.random.choice(sims,8,replace= False)
+    if sample_sim == 0:
+        sample_sim= len(sims)
+
+    print('sample {}'.format(sample_sim))
+    sim_sub= np.random.choice(sims,sample_sim,replace= False)
     
-    for sim in sims:
+    for sim in sim_sub:
         
         ## chromosome
         chrom= sim.split('.')[0].split('C')[-1].strip('chr')
@@ -458,6 +464,7 @@ def MC_sample_matrix_v1(min_size= 80, samp= [5,20,10], diffs= False, frequency_r
         ksize= 3 # odd.
         bases = 'ACGT'
         collapsed= True
+        ploidy= 2
         
         genotype_parse= [x for x in range(summary.shape[0]) if int(summary.POS[x])-1 >= wstart and int(summary.POS[x])-1 <= wend]
         Window= genotype[:,genotype_parse]
@@ -467,7 +474,7 @@ def MC_sample_matrix_v1(min_size= 80, samp= [5,20,10], diffs= False, frequency_r
         t0= time.time()
         mut_matrix, flag_reverse, flag_remove= vcf_muts_matrix_v1(refseq,subset_summary,start= wstart,end= wend,ksize= ksize,
         													bases=bases, collapse= collapsed)
-
+        
         retain= [x for x in range(Window.shape[1]) if x not in flag_remove]
         Window= Window[:,retain]
         subset_summary= subset_summary.loc[retain,:].reset_index()
@@ -486,7 +493,7 @@ def MC_sample_matrix_v1(min_size= 80, samp= [5,20,10], diffs= False, frequency_r
         
         
         if flag_reverse:
-            Window[:,flag_reverse]= 2 - Window[:,flag_reverse]
+            Window[:,flag_reverse]= ploidy - Window[:,flag_reverse]
         
         ind_collapsed_mat= geno_muts_v2(np.array(Window), mut_matrix)
         
@@ -696,7 +703,6 @@ def read_vcf_allel(file_vcf):
     Use scikit allel to read vcf file. Organise variant information into summary pandas df. 
     '''
     
-    #print(file_vcf)
     vcf_ori= allel.read_vcf(file_vcf)
     
     if not vcf_ori:
@@ -707,17 +713,25 @@ def read_vcf_allel(file_vcf):
     ### get genotype array
     geno= vcf_ori['calldata/GT']
 
+    mult_alt= []
+    indel= []
+    single= []
+
+    for idx in range(geno.shape[0]):
+            ## eliminate +1 segregating mutations.
+            if vcf_ori['variants/ALT'][idx][1]:
+                gen_t= geno[idx]
+                gen_t[gen_t > 1] = 0
+                geno[idx]= gen_t
+
+
+            if len(vcf_ori['variants/REF'][idx]) != 1 or len(vcf_ori['variants/ALT'][idx][0]) != 1:
+                indel.append(idx)
+            else:
+                single.append(idx)
+
     
-    mult_alt= [x for x in range(geno.shape[0]) if vcf_ori['variants/ALT'][x][1]] #len(vcf_ori['variants/REF'][x]) > 1
-    
-    indel= [x for x in range(geno.shape[0]) if len(vcf_ori['variants/REF'][x]) == 1 and len(vcf_ori['variants/ALT'][x][0]) == 1]
-    
-    ## eliminate +1 segregating mutations.
-    for mult in mult_alt: 
-        gen_t= geno[mult]
-        gen_t[gen_t > 1] = 0
-        geno[mult]= gen_t
-    
+
     
     geno= allel.GenotypeArray(geno)
     geno= geno.to_n_alt().T
@@ -743,10 +757,11 @@ def read_vcf_allel(file_vcf):
     
     if len(indel):
         #print('mutliple ref loci: {}'.format(geno.shape[1] - len(indel)))
-        geno= geno[:,indel]
-        summary= summary[indel,:]
+        geno= geno[:,single]
+        summary= summary[single,:]
     
     summary= pd.DataFrame(summary,columns= column_names)
+    
     return geno, summary, vcf_ori['samples']
 
 
@@ -818,6 +833,9 @@ def mcounter_deploy(data,p_value= 1e-5, test_m= 'fisher', individually= False,
                 pop_counts[ref]= pop_counts[ref] / np.sum(pop_counts[ref])
 
                 dist_prop= pop_counts[sub] / pop_counts[ref]
+                dist_prop= np.nan_to_num(dist_prop)
+
+                grid_diffs= pop_counts[sub] - pop_counts[ref]
 
                 count_data[d]= {
                     'grids': ratio_grid,
@@ -825,19 +843,21 @@ def mcounter_deploy(data,p_value= 1e-5, test_m= 'fisher', individually= False,
                     'sizes': sizes,
                     'batch': batch,
                     'prop': dist_prop,
-                    'pop': pop
+                    'pop': pop,
+                    'diffs': grid_diffs
                 }
 
                 if data_freqs:
                     count_data[d]['freqs']= {
-                        'ref': data_freqs[ref][pop],
-                        'sub': data_freqs[sub][pop_asso[ref][pop][sub]]
+                        0: data_freqs[ref][pop],
+                        1: data_freqs[sub][pop_asso[ref][pop][sub]]
                     }
 
 
                 d += 1
     
     return pop_asso, count_data
+
 
 
 
@@ -903,6 +923,7 @@ def read_windows_SFS(diffs= False, frequency_range= [0,1],indfile= 'ind_assignme
         ksize= 3 # odd.
         bases = 'ACGT'
         collapsed= True
+        ploidy= 2
         
         genotype_parse= [x for x in range(summary.shape[0]) if int(summary.POS[x])-1 >= wstart and int(summary.POS[x])-1 <= wend]
         Window= genotype[:,genotype_parse]
@@ -931,7 +952,7 @@ def read_windows_SFS(diffs= False, frequency_range= [0,1],indfile= 'ind_assignme
         
         
         if flag_reverse:
-            Window[:,flag_reverse]= 2 - Window[:,flag_reverse]
+            Window[:,flag_reverse]= ploidy - Window[:,flag_reverse]
         
         
         pop_dict, pop_freqs= ind_assignment_SFS(sim,Window,dir_sim= sim_dir,indfile= indfile)
@@ -1009,8 +1030,17 @@ def ind_assignment_SFS(reference,Window, dir_sim= '',indfile= 'ind_assignments.t
     return pop_dict, pop_freqs
 
 
+def array_to_dict(vector):
+    '''convert vector to set dictionary to save space'''
 
-def pop_dict_SFS(Window, pop_dict):
+    set_dict= {
+        z: [x for x in range(len(vector)) if vector[x] == z] for z in list(set(vector))
+    }
+
+    return set_dict
+
+
+def pop_dict_SFS(Window, pop_dict, ploidy= 2):
     '''
     read allele frequencies.
     '''
@@ -1019,10 +1049,12 @@ def pop_dict_SFS(Window, pop_dict):
     
     for pop in pop_dict.keys():
         pop_gen= Window[pop_dict[pop],:]
-        freqs= np.sum(pop_gen,axis= 0) / (2*pop_gen.shape[0])
-        pop_freqs[pop]= freqs
-        ## discount alleles outside freq range.
+        pop_gen= np.sum(pop_gen,axis= 0)
+        freq_dict= array_to_dict(pop_gen)
+        freq_dict= [(z,len(g)) for z,g in freq_dict.items()]
 
+        pop_freqs[pop]= freq_dict
+        
     return pop_freqs
 
 
