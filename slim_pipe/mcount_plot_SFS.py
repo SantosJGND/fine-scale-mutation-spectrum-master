@@ -9,6 +9,12 @@ import re
 import pandas as pd
 import os
 import numpy as np
+import itertools as it
+import collections
+
+def recursively_default_dict():
+    return collections.defaultdict(recursively_default_dict)
+
 
 ## directories
 main_dir= os.getcwd() + '/'
@@ -472,7 +478,7 @@ plt.close()
 
 ####################################################
 #################################################### grid SSD II
-
+Nbins= 100
 bins= np.linspace(0,1,Nbins)
 bins= np.round(bins,4)
 bins= [(bins[x-1],bins[x]) for x in range(1,len(bins))]

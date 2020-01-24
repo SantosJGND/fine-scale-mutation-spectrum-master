@@ -81,7 +81,7 @@ def fasta_get_freq(seq,start= 0,end= 0,step= 1,ksize=3,bases= 'ATCG'):
     if end == 0:
         end= len(seq) - ksize
     
-    for ki in range(start,end-ksize,step):
+    for ki in range(start,end,step):
         kmer= seq[ki:ki+ksize]
         if 'N' in kmer:
             continue

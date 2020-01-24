@@ -124,7 +124,7 @@ def ind_assignment_scatter(reference,main_dir= '',pops= 'ind_assignments.txt',
 
 
 def ind_assignment_scatter_v1(reference,dir_sim= '',indfile= 'ind_assignments.txt',
-                          min_size= 80, samp= [5,20,10], outemp= 'ind_assignments{}.txt',write_out= False):
+                          min_size= 80, samp= [5,20,10], stepup= "increment",outemp= 'ind_assignments{}.txt',write_out= False):
     '''
     read ind assignments for a given window; 
     chose one population;
@@ -153,21 +153,27 @@ def ind_assignment_scatter_v1(reference,dir_sim= '',indfile= 'ind_assignments.tx
         N= len(pop_dict[pop_chose])
         pop_list= pop_dict[pop_chose]
 
-        for each in np.linspace(samp[0],N,samp[1]):  
+        if stepup== 'increment':
+            timetable= np.linspace(1,samp[0],samp[1])
+        else:
+            timetable= np.linspace(samp[0],N,samp[1])
+
+        for each in timetable:  
             each= int(each)
             for perm in range(samp[2]):
                 tag= '_ss' + '.'.join([pop_chose,str(each),str(perm)])
                 
                 smaller= np.random.choice(pop_list,each,replace= False)
                 smaller= [int(x in smaller) for x in pop_list]
-
+                
                 new_pop= {
-                    tag + '.s' + str(z): [pop_list[x] for x in range(len(smaller)) if smaller[x] == z] for z in list(set(smaller))
+                    tag + '.s' + str(z): [pop_list[x] for x in range(len(smaller)) if smaller[x] == z] for z in [1]
                 }
                 
-                new_dict= {v:g for v,g in pop_dict.items() if v != pop_chose}
-                new_dict.update(new_pop)
-                
+                #new_dict= {v:g for v,g in pop_dict.items() if v != pop_chose}
+                #new_dict.update(new_pop)
+                new_dict= new_pop
+
                 if write_out:
                     dict_write(new_dict,inds,outemp= outemp, dir_sim= dir_sim, tag= tag)
                 else:
@@ -392,9 +398,9 @@ def read_diffs(tag,diff_dir= '',start= 0):
 
 
 
-def MC_sample_matrix_v1(min_size= 80, samp= [5,20,10], diffs= False, frequency_range= [0,1],indfile= 'ind_assignments.txt', outemp= 'ind_assignments{}.txt',
+def MC_sample_matrix_v1(min_size= 80, samp= [5,20,10], stepup= "increment", diffs= False, frequency_range= [0,1],indfile= 'ind_assignments.txt', outemp= 'ind_assignments{}.txt',
                     count_dir= './count/', dir_launch= '..',main_dir= './', sim_dir= 'mutation_counter/data/sims/', muted_dir= 'mutation_counter/data/mutation_count/',
-                    outlog= 'indy.log', row= 24,col= 4, single= True, exclude= False, print_summ= False, sample_sim= 0):
+                    outlog= 'indy.log', row= 24,col= 4, single= True, exclude= False, print_summ= False, sample_sim= 0,collapsed= True,bases= 'ACGT',ksize= 3,ploidy= 2, freq_extract= False):
     '''
     launch mutation counter pipeline on manipulated population assignments.
     Use matrix multiplication to extract counts. 
@@ -436,6 +442,8 @@ def MC_sample_matrix_v1(min_size= 80, samp= [5,20,10], diffs= False, frequency_r
         vcf_file= vcf_dir + sim + '_' + 'chr' + chrom + '.vcf.gz'
         
         t0= time.time()
+        print(sim)
+
         genotype, summary, Names= read_vcf_allel(vcf_file)
         t1= time.time()
         
@@ -444,7 +452,7 @@ def MC_sample_matrix_v1(min_size= 80, samp= [5,20,10], diffs= False, frequency_r
         if len(genotype) == 0:
             continue
         
-        print(genotype.shape, sim)
+        print(genotype.shape)
         
         ## read fasta
         fasta_file= vcf_dir + 'chr{}_{}.fa.gz'.format(chrom,sim)
@@ -461,10 +469,6 @@ def MC_sample_matrix_v1(min_size= 80, samp= [5,20,10], diffs= False, frequency_r
         wend= int(max(positions))
         
         Wlen= wend - wstart
-        ksize= 3 # odd.
-        bases = 'ACGT'
-        collapsed= True
-        ploidy= 2
         
         genotype_parse= [x for x in range(summary.shape[0]) if int(summary.POS[x])-1 >= wstart and int(summary.POS[x])-1 <= wend]
         Window= genotype[:,genotype_parse]
@@ -498,7 +502,7 @@ def MC_sample_matrix_v1(min_size= 80, samp= [5,20,10], diffs= False, frequency_r
         ind_collapsed_mat= geno_muts_v2(np.array(Window), mut_matrix)
         
         tag_list, tag_dict, pop_dict= ind_assignment_scatter_v1(sim,dir_sim= sim_dir,
-                          min_size= min_size, samp= samp, outemp= outemp,indfile= indfile)
+                          min_size= min_size, samp= samp, stepup= stepup, outemp= outemp,indfile= indfile)
         #print(tag_list)
         total_inds= sum([len(x) for x in pop_dict.values()])
         if Window.shape[0] < total_inds:
@@ -508,8 +512,9 @@ def MC_sample_matrix_v1(min_size= 80, samp= [5,20,10], diffs= False, frequency_r
         data_kmer[sim]= count_popKmers(Window, mut_matrix, pop_dict, single= single, 
                                   frequency_range= frequency_range,row=row,col=col)
 
-        pop_freqs= pop_dict_SFS(Window,pop_dict)
-        data_freqs[sim]= pop_freqs
+        if freq_extract:
+            pop_freqs= pop_dict_SFS(Window,pop_dict)
+            data_freqs[sim]= pop_freqs
         
         t1= time.time()
         count_time= t1- t0
@@ -537,8 +542,9 @@ def MC_sample_matrix_v1(min_size= 80, samp= [5,20,10], diffs= False, frequency_r
                 data_kmer[new_sim]= count_popKmers(Window, mut_matrix, pop_dict, single= single, 
                                   frequency_range= frequency_range,row=row,col=col)
 
-                pop_freqs= pop_dict_SFS(Window,pop_dict)
-                data_freqs[new_sim]= pop_freqs
+                if freq_extract:
+                    pop_freqs= pop_dict_SFS(Window,pop_dict)
+                    data_freqs[new_sim]= pop_freqs
                 
 
         if print_summ:
