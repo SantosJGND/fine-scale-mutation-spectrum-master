@@ -191,7 +191,7 @@ for idx in categ[0]:
         
         ## balance for kmer frequencies in fasta.
         #mlist= mlist * (1/fasta_kmer_prop.shape[1] / fasta_kmer_prop)
-        #mlist= mlist - (fasta_kmer_prop/3)
+        mlist= mlist - (fasta_kmer_prop/3)
         
         fasta_pop[mut_matrix].append(list(fasta_kmer_prop[0]))
         ref_mdict[mut_matrix].append(list(mlist[0]))
@@ -305,7 +305,7 @@ predictions= euc_predict
 ############ compare predictions with known mutation matrix across populations.
 ############ Store by original mutation matrix, average by proportion bin. 
 
-Nbins= 50
+Nbins= 100
 bins= np.linspace(0,1,Nbins)
 bins= np.round(bins,4)
 bins= [(bins[x-1],bins[x]) for x in range(1,len(bins))]
@@ -353,36 +353,6 @@ comp_dict= {
 }
 
 
-####################
-################## FALSE POSITIVES
-
-fp_dict= {
-    lab: {
-        prop: [[int(predictions[x] == lab and sub_label[x] != lab) for x in lab_prop[olab][prop]] for olab in lab_prop.keys() if olab != lab] for prop in lab_prop[lab].keys()
-    } for lab in lab_prop.keys()
-}
-
-
-fp_dict= {
-    lab: {
-        prop: list(it.chain(*fp_dict[lab][prop])) for prop in lab_prop[lab].keys()
-    } for lab in lab_prop.keys()
-}
-
-
-fp_std= {
-    lab: {
-        prop: np.std(fp_dict[lab][prop]) for prop in fp_dict[lab].keys()
-    } for lab in fp_dict.keys()
-}
-
-
-fp_dict= {
-    lab: {
-        prop: np.mean(fp_dict[lab][prop]) for prop in fp_dict[lab].keys()
-    } for lab in fp_dict.keys()
-}
-
 
 ###############
 ############### number of kmer with mutation rate modifications by simulation.
@@ -429,7 +399,6 @@ plt.close()
 ###############
 ############## plot accuracy
 
-
 plt.figure(figsize=(10, 10))
 
 for lab in comp_dict.keys():
@@ -452,13 +421,39 @@ plt.close()
 ####################
 ################## plot false positives
 
+####################
+################## FALSE POSITIVES
+
+fp_dict= {
+    lab: {
+        prop: list(it.chain(*[[int(predictions[x] == lab and sub_label[x] != lab) for x in lab_prop[olab][prop]] for olab in lab_prop.keys() if olab != lab])) for prop in lab_prop[lab].keys()
+    } for lab in lab_prop.keys()
+}
+
+fp_std= {
+    lab: {
+        prop: np.std(fp_dict[lab][prop]) for prop in fp_dict[lab].keys()
+    } for lab in fp_dict.keys()
+}
+
+
+fp_dict= {
+    lab: {
+        prop: np.mean(fp_dict[lab][prop]) for prop in fp_dict[lab].keys()
+    } for lab in fp_dict.keys()
+}
+
 
 plt.figure(figsize=(10, 10))
 
 for lab in fp_dict.keys():
-    y= [fp_dict[lab][prop] for prop in sorted(fp_dict[lab].keys())],
-    x= sorted(fp_dict[lab].keys()),
-    errory=  [fp_dict[lab][prop] for prop in sorted(fp_dict[lab].keys())],
+    props= sorted(fp_dict[lab].keys())
+    print(props)
+
+    y= [fp_dict[lab][prop] for prop in props],
+    x= props,
+    errory=  [fp_std[lab][prop] for prop in props][0],
+    print(errory)
     plt.errorbar(x,y,yerr=errory, label= lab)
 
 plt.xlabel('relative sample size')

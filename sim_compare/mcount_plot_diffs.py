@@ -32,8 +32,9 @@ sampling= [5,100,5]
 bases= 'ATCG'
 ksize= 3
 sample_sim= 0
+stepup= ''
 
-data, data_freqs = MC_sample_matrix_v1(min_size= min_size, samp= sampling, count_dir= count_dir, 
+data, data_freqs = MC_sample_matrix_v1(min_size= min_size, samp= sampling, stepup= stepup, count_dir= count_dir, 
                         dir_launch= dir_launch,main_dir= main_dir,sim_dir= sims_dir, indfile= indfile,
                           muted_dir= muted_dir, diffs= diffs,sample_sim= sample_sim,
                        exclude= False)
@@ -83,10 +84,11 @@ def run_stats(ref_sim,ref_pair,data,data_freqs= {}):
 
     if data_freqs:
         comb_stats['freqs']= {
-            x: data_freqs[x[0]][x[1]] for x in ref_pair
+            ref_pair.index(x): data_freqs[x[0]][x[1]] for x in ref_pair
         }
     
     return comb_stats
+
 
 
 
@@ -130,8 +132,11 @@ def mcounter_deploy_v2(data,p_value= 1e-5, test_m= 'fisher', individually= False
                 ref_pair= [(ref, pop),(sub, pop_asso[ref][pop][sub])]
                 
                 count_data[d]= run_stats(ref,ref_pair,data,data_freqs= data_freqs)
-                                
+                
+                count_data[d]['pop']= pop
+                
                 count_data[d]['other']= [] 
+                
                 
                 for ref2 in pop_asso.keys():
                     for pop2 in pop_asso[ref2].keys():
@@ -153,6 +158,8 @@ def mcounter_deploy_v2(data,p_value= 1e-5, test_m= 'fisher', individually= False
                 d += 1
     
     return pop_asso, count_data
+
+
 
 
 
@@ -207,23 +214,20 @@ grids= [count_data[s]['grids'] for s in avail_sub]
 grid_shape= grids[0].shape
 grid_total= np.prod(grid_shape)
 
-props= [count_data[s]['prop'] for s in avail_sub]
+
 grid_diffs= [count_data[s]['diffs'] for s in avail_sub]
 ## extract statistics per mutation.
 mut_grid= {}
-mut_prop= {}
 mut_diffs= {}
 
 for row in range(grid_shape[0]):
     for col in range(grid_shape[1]):
         mut= grid_labels[row,col]
         mut_grid[mut]= []
-        mut_prop[mut]= []
         mut_diffs[mut]= []
 
         for idx in range(len(avail_sub)):
             mut_grid[mut].append(grids[idx][row,col])
-            mut_prop[mut].append(props[idx][row,col])
             mut_diffs[mut].append(grid_diffs[idx][row,col]**2)
 
 ## mask infinite values and compute std.
@@ -264,7 +268,7 @@ compound_kmer= {
                 g: {
                     z: [] for z in list(set(pop_proportions))
                 } for g in batch_dict.keys()
-            } for y in ['pval','prop','diffs']
+            } for y in ['pval','diffs']
         }
 
 
@@ -276,7 +280,6 @@ for kmer in mut_grid.keys():
     
     plot_data= {
         'pval': mut_grid[kmer],
-        'prop': mut_prop[kmer],
         'diffs': mut_diffs[kmer]
     }
     
@@ -462,7 +465,7 @@ plt.close()
 
 ####################################################
 #################################################### grid SSD II
-Nbins= 100
+Nbins= 30
 bins= np.linspace(0,1,Nbins)
 bins= np.round(bins,4)
 bins= [(bins[x-1],bins[x]) for x in range(1,len(bins))]
@@ -551,18 +554,15 @@ for i in batch_dict.keys():
         plt.title('grid SSD / sample proportion - control')
 
         plt.legend()
-        plt.savefig(fig_dir + 'gridSSD_{}_control.png'.format(i),bbox_inches='tight')
+        plt.savefig(fig_dir + 'gridSSD_{}_control.png'.format(pop),bbox_inches='tight')
         plt.close()
 
-############################################################# 
-############################################################# STRATA
-
 
 ############################################################# 
 ############################################################# STRATA
 
 
-for strata in ['prop','pval','diffs']:
+for strata in ['pval','diffs']:
 
     plt.figure(figsize=(20,10))
     

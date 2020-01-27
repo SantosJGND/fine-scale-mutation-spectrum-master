@@ -216,6 +216,7 @@ data_freq=np.array(data_freq)
 
 
 #################
+mat_dir= ''
 
 trial_dict= {z: {} for z in ref_mdict.keys()}
 

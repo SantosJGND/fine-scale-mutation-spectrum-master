@@ -33,8 +33,9 @@ bases= 'ATCG'
 ksize= 3
 sample_sim= 0
 freq_extract= True
+stepup= ''
 
-data, data_freqs = MC_sample_matrix_v1(min_size= min_size, samp= sampling, count_dir= count_dir, 
+data, data_freqs = MC_sample_matrix_v1(min_size= min_size, samp= sampling, stepup= stepup,count_dir= count_dir, 
                         dir_launch= dir_launch,main_dir= main_dir,sim_dir= sims_dir, indfile= indfile,
                           muted_dir= muted_dir, diffs= diffs,sample_sim= sample_sim, freq_extract= freq_extract,
                        exclude= False)
@@ -84,7 +85,7 @@ def run_stats(ref_sim,ref_pair,data,data_freqs= {}):
 
     if data_freqs:
         comb_stats['freqs']= {
-            x: data_freqs[x[0]][x[1]] for x in ref_pair
+            ref_pair.index(x): data_freqs[x[0]][x[1]] for x in ref_pair
         }
     
     return comb_stats
@@ -93,7 +94,7 @@ def run_stats(ref_sim,ref_pair,data,data_freqs= {}):
 
 def mcounter_deploy_v2(data,p_value= 1e-5, test_m= 'fisher', individually= False,
                             exclude= False, frequency_range= [0,1], data_freqs= {}, extract= 'pval',
-                            muted_dir= '', tag_ref= '_ss'):
+                            muted_dir= '', tag_ref= '_ss',pool = False):
     '''
     Parse data dictionary.
         data: {sim: {counts:{pop:g}, Nvars:{pop:g}, sizes:{pop:g}}}
@@ -131,8 +132,11 @@ def mcounter_deploy_v2(data,p_value= 1e-5, test_m= 'fisher', individually= False
                 ref_pair= [(ref, pop),(sub, pop_asso[ref][pop][sub])]
                 
                 count_data[d]= run_stats(ref,ref_pair,data,data_freqs= data_freqs)
-                                
-                count_data[d]['other']= [] 
+                count_data[d]['pop']= pop
+                count_data[d]['other']= []
+
+                if not pool:
+                    continue
                 
                 for ref2 in pop_asso.keys():
                     for pop2 in pop_asso[ref2].keys():
@@ -203,35 +207,8 @@ available= list(count_data.keys())
 subsamp= len(count_data)
 avail_sub= np.random.choice(available,subsamp,replace= False)
 
-### 1. extract grids
-grids= [count_data[s]['grids'] for s in avail_sub]
-grid_shape= grids[0].shape
-grid_total= np.prod(grid_shape)
 
-props= [count_data[s]['prop'] for s in avail_sub]
-grid_diffs= [count_data[s]['diffs'] for s in avail_sub]
 ## extract statistics per mutation.
-mut_grid= {}
-mut_prop= {}
-mut_diffs= {}
-
-for row in range(grid_shape[0]):
-    for col in range(grid_shape[1]):
-        mut= grid_labels[row,col]
-        mut_grid[mut]= []
-        mut_prop[mut]= []
-        mut_diffs[mut]= []
-
-        for idx in range(len(avail_sub)):
-            mut_grid[mut].append(grids[idx][row,col])
-            mut_prop[mut].append(props[idx][row,col])
-            mut_diffs[mut].append(grid_diffs[idx][row,col]**2)
-
-## mask infinite values and compute std.
-#grids= [np.ma.masked_where(a == np.inf, a) for a in grids]
-#grid_mean= [np.mean(x) for x in grids] 
-#grid_std= [np.std(x) for x in grids]
-#prop_mean= [np.mean(x) for x in props]
 
 ### 2. calculate proportions across smulations
 pop_proportions= [count_data[s]['sizes'][1] / count_data[s]['sizes'][0] for s in avail_sub]
@@ -257,55 +234,78 @@ os.makedirs(fig_dir, exist_ok=True)
 fig_dir= fig_dir + '/'
 
 
-
 ##############################################################
 ############################################################## SFS
+
+pop_vector= [count_data[s]['pop'] for s in avail_sub]
+pop_set= list(set(pop_vector))
+
+pop_batch_dict= {
+    ba: {
+        pop: [x for x in batch_dict[ba] if pop_vector[x] == pop] for pop in pop_set
+    } for ba in batch_dict.keys()
+}
+
+
 
 mu= 1e-8
 N_inds= 1000
 xlab= 'sampling proportion'
 ylab= 'sum of sqared differences.'
 
-batch_sfs= {}
+
+
+
+batch_sfs= {ba: {} for ba in pop_batch_dict.keys()}
 
 for i in batch_dict.keys():
-    sims= [avail_sub[x] for x in batch_dict[i]]
-    print(len(sims))
-    counts= []
-    props= [pop_proportions[x] for x in batch_dict[i]] 
+    for pop_i in pop_batch_dict[i].keys():
+    
+        sims= [avail_sub[x] for x in pop_batch_dict[i][pop_i]]
 
-    for sim_idx in sims:
-        freqs_dict= count_data[sim_idx]['freqs']
-        sfs= []
-        sizes_sim= count_data[sim_idx]['sizes']
-        N_inds= min(sizes_sim)
-        for pop in freqs_dict.keys():
+        counts= []
+        props= [pop_proportions[x] for x in pop_batch_dict[i][pop_i]] 
 
-            #print(gen_time)
-            freqs= freqs_dict[pop]
+        for sim_idx in sims:
+            freqs_dict= count_data[sim_idx]['freqs']
+            sfs= []
+            sizes_sim= count_data[sim_idx]['sizes']
+            N_inds= min(sizes_sim) #- int(min(sizes_sim) % 2 == 0)
+            #N_inds= int(np.mean(sizes_sim))
 
-            sizeN= [x[1] for x in freqs if x[1] > 0]
-            freqs= np.repeat([x[0] for x in freqs if x[1] > 0],sizeN) / sizes_sim[pop]
+            for pop in freqs_dict.keys():
+
+                #print(gen_time)
+                freqs= freqs_dict[pop]
+
+                sizeN= [x[1] for x in freqs if x[1] > 0]
+                freqs= np.repeat([x[0] for x in freqs if x[1] > 0],sizeN) / sizes_sim[pop]
+
+                #freqs= [x for x in freqs if x > 0]
+                bin_count= np.histogram(freqs,bins= N_inds,range= [0,1])[0]
+                bin_count= bin_count / np.sum(bin_count)
+                #bin_count= np.array(bin_count)
+                sfs.append(bin_count)
+
+            dist_vec= sfs[0] - sfs[1] 
+
+            dist_vec= dist_vec**2
+            #dist_vec= np.mean(dist_vec)
+            dist_vec= np.sqrt(np.sum(dist_vec)) / N_inds
+            #dist_vec= np.sqrt(sum(dist_vec)) / N_inds
             
-            bin_count= np.histogram(freqs,bins= N_inds,range= [0,1])[0]
-            bin_count= bin_count / sum(bin_count)
-            sfs.append(bin_count)
+            counts.append(dist_vec)
 
-        dist_vec= sfs[0] - sfs[1] #/ np.sum(indian + x)
-        dist_vec= dist_vec**2
-        dist_vec= np.sqrt(np.sum(dist_vec)) / N_inds
-        
-        counts.append(dist_vec)
+        props_dict= {
+            z: [counts[x] for x in range(len(props)) if props[x] == z] for z in list(set(props))
+        }
 
-    props_dict= {
-        z: [counts[x] for x in range(len(props)) if props[x] == z] for z in list(set(props))
-    }
+        props_sorted= sorted(props_dict.keys())
+        props_means= [np.mean(props_dict[x]) for x in props_sorted]
+        props_std= [np.std(props_dict[x]) for x in props_sorted]
 
-    props_sorted= sorted(props_dict.keys())
-    props_means= [np.mean(props_dict[x]) for x in props_sorted]
-    props_std= [np.std(props_dict[x]) for x in props_sorted]
+        batch_sfs[i][pop_i]= [props_sorted,props_means,props_std]
 
-    batch_sfs[i]= [props_sorted,props_means,props_std]
 
     plt.figure(figsize=(20,10))
 
@@ -314,25 +314,11 @@ for i in batch_dict.keys():
     plt.ylabel(ylab)
     plt.title('sfs_differences.')
     
-    plt.errorbar(props_sorted,props_means,yerr=props_std)
+    for pop in batch_sfs[i].keys():
+        props_sorted,props_means,props_std = batch_sfs[i][pop]
+        plt.errorbar(props_sorted,props_means,yerr=props_std,label= pop)
     
     plt.savefig(fig_dir + 'SFS_{}.png'.format(i),bbox_inches='tight')
     plt.close()
-
-
-plt.figure(figsize=(15,10))
-
-plt.xlabel(xlab)
-#plt.ylim(0,1.03)
-plt.ylabel(ylab)
-plt.title('sfs_differences')
-
-for i in batch_sfs.keys():
-    plt.errorbar(batch_sfs[i][0],batch_sfs[i][1],yerr=batch_sfs[i][2],label= i)
-
-plt.legend()
-plt.savefig(fig_dir + 'SFS_combined.png',bbox_inches='tight')
-plt.close() 
-
 
 

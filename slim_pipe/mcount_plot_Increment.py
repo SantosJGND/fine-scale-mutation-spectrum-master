@@ -254,6 +254,11 @@ for ba in batch_stats.keys():
 #####################
 ##################### PLOTS
 
+import matplotlib
+matplotlib.use('Agg')
+
+import matplotlib.pyplot as plt
+
 #### plot convergence in distance
 
 for ep in batch_stats.keys():
